@@ -56,7 +56,7 @@ hold, expiry with 2-second holds, ownership checks and 4xx on bad input.
 <details>
 <summary>Running tests without Docker (optional)</summary>
 
-Needs the .NET 10 SDK / Node 20+ and a PostgreSQL you can reach.
+Needs the .NET 10 SDK / Node 22.12+ and a PostgreSQL you can reach.
 
 ```bash
 # backend: point the tests at any PostgreSQL server (a database is created per run)
