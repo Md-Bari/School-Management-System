@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { t } from '../i18n';
 import { normalizeStudentId, studentIdError } from '../lib/studentId';
 
 interface Props {
@@ -12,51 +13,56 @@ interface Props {
  */
 export function StudentIdBar({ studentId, onChange }: Props) {
   const [draft, setDraft] = useState(studentId);
-  const [error, setError] = useState<string | null>(null);
+  // Only whether to show the error is stored; the text is computed on render so it follows
+  // the selected language.
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => setDraft(studentId), [studentId]);
+
+  const error = showError ? studentIdError(normalizeStudentId(draft)) : null;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const value = normalizeStudentId(draft);
-    const problem = studentIdError(value);
-    setError(problem);
-    if (!problem) {
-      setDraft(value);
-      onChange(value);
+    if (studentIdError(value)) {
+      setShowError(true);
+      return;
     }
+    setShowError(false);
+    setDraft(value);
+    onChange(value);
   };
 
   const clear = () => {
     setDraft('');
-    setError(null);
+    setShowError(false);
     onChange('');
   };
 
   return (
     <form className="student-bar" onSubmit={submit} noValidate>
-      <label htmlFor="student-id">শিক্ষার্থীর জন্ম নিবন্ধন নম্বর (১৭ অঙ্ক)</label>
+      <label htmlFor="student-id">{t('studentId.label')}</label>
       <div className="student-bar-row">
         <input
           id="student-id"
           inputMode="numeric"
           autoComplete="off"
-          placeholder="যেমন: 20152691234567890"
+          placeholder={t('studentId.placeholder')}
           value={draft}
           maxLength={25}
           onChange={(e) => {
             setDraft(e.target.value);
-            setError(null);
+            setShowError(false);
           }}
           aria-invalid={error ? true : undefined}
           aria-describedby="student-id-help"
         />
         <button type="submit" className="btn btn-primary">
-          ব্যবহার করুন
+          {t('studentId.use')}
         </button>
         {studentId && (
           <button type="button" className="btn" onClick={clear}>
-            মুছুন
+            {t('studentId.clear')}
           </button>
         )}
       </div>
@@ -67,10 +73,10 @@ export function StudentIdBar({ studentId, onChange }: Props) {
           </span>
         ) : studentId ? (
           <span>
-            বর্তমান শিক্ষার্থী: <strong>{studentId}</strong>
+            {t('studentId.current')} <strong>{studentId}</strong>
           </span>
         ) : (
-          <span>আবেদন করতে বা নিজের আবেদন দেখতে আগে নম্বরটি লিখুন।</span>
+          <span>{t('studentId.hint')}</span>
         )}
       </div>
     </form>
