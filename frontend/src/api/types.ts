@@ -22,6 +22,7 @@ export interface HoldCreated {
   status: HoldStatus;
   expiresAt: string;
   className?: string;
+  createdAt?: string;
 }
 
 export interface HoldDetail {
@@ -32,6 +33,7 @@ export interface HoldDetail {
   className?: string;
   studentId?: string;
   confirmedAt?: string | null;
+  createdAt?: string;
 }
 
 export interface HoldConfirmed {
