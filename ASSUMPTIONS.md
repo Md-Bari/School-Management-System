@@ -106,8 +106,11 @@ because it needs no retry loop and blocked requests simply wait their turn. That
   `localStorage`, and applications are always re-fetched from the server (`/me/holds`). The
   application page lives at a URL (`#/holds/<id>`), so a refresh stays on it.
 - If a refresh fails, the last good data stays on screen with a warning instead of disappearing.
-- **The UI is in Bangla** (with the English terms the brief itself uses: class, seat, hold),
-  because the users are parents in Bangladesh.
+- **The UI is in Bangla by default** (with the English terms the brief itself uses: class, seat,
+  hold), because the users are parents in Bangladesh. A button in the header switches the whole
+  UI, including error messages, to English and back; the choice is remembered in the browser.
+  Translations live in one file (`frontend/src/i18n/messages.ts`) and the build fails if an
+  English text is missing.
 - **The API URL is configured at container start** (`API_BASE_URL` → `/config.js`), not baked in
   at build time, so changing it needs no rebuild. It must be the URL as seen by the *browser*.
 
