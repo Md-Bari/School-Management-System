@@ -31,6 +31,8 @@ export function ClassListPage({ studentId }: { studentId: string }) {
   const { data: myHolds, refresh: refreshMine } = usePolling(fetchMine, CLASS_POLL_MS, `me:${studentId}`);
   // Recomputed on every render (at least every poll), so an expiring hold drops out on time.
   const active = activeHoldsByClass(myHolds, serverNow());
+  // A student can be admitted to only one class.
+  const admittedHold = myHolds?.find((h) => h.status === 'CONFIRMED');
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; showMyLink: boolean } | null>(null);
 
@@ -47,7 +49,10 @@ export function ClassListPage({ studentId }: { studentId: string }) {
       navigate({ name: 'hold', holdId: hold.holdId });
     } catch (e) {
       const code = errorCode(e);
-      setMessage({ text: userMessage(e), showMyLink: code === 'ALREADY_APPLIED' || code === 'ALREADY_CONFIRMED' });
+      setMessage({
+        text: userMessage(e),
+        showMyLink: code === 'ALREADY_APPLIED' || code === 'ALREADY_CONFIRMED' || code === 'ALREADY_ADMITTED',
+      });
       void refresh();
       void refreshMine();
     } finally {
@@ -60,8 +65,14 @@ export function ClassListPage({ studentId }: { studentId: string }) {
       <h2>Class তালিকা</h2>
       <p className="muted">
         ভর্তি হয় “আগে আবেদন করলে আগে পাবে” ভিত্তিতে। আবেদন করলে seat কিছু সময়ের জন্য আপনার নামে hold থাকবে; এর মধ্যে
-        ভর্তি ফি দিলে ভর্তি নিশ্চিত হবে।
+        ভর্তি ফি দিলে ভর্তি নিশ্চিত হবে। একজন শিক্ষার্থী শুধু একটি class-এ ভর্তি হতে পারবে।
       </p>
+
+      {admittedHold && (
+        <Notice kind="success">
+          এই শিক্ষার্থী “{admittedHold.className}”-এ ভর্তি নিশ্চিত হয়েছে, তাই অন্য class-এ আর আবেদন করা যাবে না।
+        </Notice>
+      )}
 
       {message && (
         <Notice kind="error" onClose={() => setMessage(null)}>
@@ -119,10 +130,16 @@ export function ClassListPage({ studentId }: { studentId: string }) {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={c.availableSeats === 0 || applyingTo !== null}
+                        disabled={c.availableSeats === 0 || applyingTo !== null || Boolean(admittedHold)}
                         onClick={() => void apply(c.id)}
                       >
-                        {applyingTo === c.id ? 'আবেদন হচ্ছে…' : c.availableSeats === 0 ? 'seat নেই' : 'আবেদন করুন'}
+                        {applyingTo === c.id
+                          ? 'আবেদন হচ্ছে…'
+                          : admittedHold
+                            ? 'অন্য class-এ ভর্তি হয়েছে'
+                            : c.availableSeats === 0
+                              ? 'seat নেই'
+                              : 'আবেদন করুন'}
                       </button>
                     )}
                   </td>
