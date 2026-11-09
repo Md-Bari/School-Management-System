@@ -7,6 +7,7 @@ import { Notice } from '../components/Notice';
 import { RefreshStatus } from '../components/RefreshStatus';
 import { routeHref } from '../hooks/useHashRoute';
 import { usePolling } from '../hooks/usePolling';
+import { t } from '../i18n';
 import { formatDateTime } from '../lib/holdStatus';
 
 export const MY_HOLDS_POLL_MS = 5000;
@@ -16,8 +17,8 @@ export function MyHoldsPage({ studentId }: { studentId: string }) {
   if (!studentId) {
     return (
       <section>
-        <h2>আমার আবেদন</h2>
-        <Notice kind="info">নিজের আবেদন দেখতে উপরের ঘরে শিক্ষার্থীর ১৭ অঙ্কের জন্ম নিবন্ধন নম্বর লিখুন।</Notice>
+        <h2>{t('my.title')}</h2>
+        <Notice kind="info">{t('my.needId')}</Notice>
       </section>
     );
   }
@@ -31,23 +32,25 @@ function MyHoldsList({ studentId }: { studentId: string }) {
 
   return (
     <section>
-      <h2>আমার আবেদন</h2>
-      <p className="muted">জন্ম নিবন্ধন নম্বর: {studentId}</p>
+      <h2>{t('my.title')}</h2>
+      <p className="muted">{t('my.forId', { id: studentId })}</p>
 
-      {loading && !holds && <p>লোড হচ্ছে…</p>}
+      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData={Boolean(holds)} intervalMs={MY_HOLDS_POLL_MS} />
+
+      {loading && !holds && <p>{t('common.loading')}</p>}
 
       {!holds && error ? (
         <Notice kind="error">
           {userMessage(error)}{' '}
           <button type="button" className="btn btn-small" onClick={() => void refresh()}>
-            আবার চেষ্টা করুন
+            {t('common.retry')}
           </button>
         </Notice>
       ) : null}
 
       {holds && holds.length === 0 && (
         <Notice kind="info">
-          এই শিক্ষার্থীর এখনও কোনো আবেদন নেই। <a href="#/">Class তালিকা থেকে আবেদন করুন →</a>
+          {t('my.empty')} <a href="#/">{t('my.emptyLink')}</a>
         </Notice>
       )}
 
@@ -58,8 +61,6 @@ function MyHoldsList({ studentId }: { studentId: string }) {
           ))}
         </ul>
       )}
-
-      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData={Boolean(holds)} />
     </section>
   );
 }
@@ -69,16 +70,18 @@ function HoldItem({ hold, studentId, onChanged }: { hold: MyHold; studentId: str
     <li className="card hold-item">
       <div className="hold-item-head">
         <h3>{hold.className}</h3>
-        <a href={routeHref({ name: 'hold', holdId: hold.holdId })}>বিস্তারিত →</a>
+        <a href={routeHref({ name: 'hold', holdId: hold.holdId })}>{t('my.details')}</a>
       </div>
-      {hold.createdAt && <p className="muted small">আবেদন: {formatDateTime(hold.createdAt)}</p>}
+      {hold.createdAt && <p className="muted small">{t('my.appliedAt', { time: formatDateTime(hold.createdAt) })}</p>}
       <HoldActions
         holdId={hold.holdId}
         status={hold.status}
         expiresAt={hold.expiresAt}
+        createdAt={hold.createdAt}
         ownerStudentId={studentId}
         studentId={studentId}
         onChanged={onChanged}
+        compact
       />
     </li>
   );
