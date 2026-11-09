@@ -1,5 +1,6 @@
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { StudentIdBar } from './components/StudentIdBar';
+import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { routeHref, useHashRoute, type Route } from './hooks/useHashRoute';
 import { useStudentId } from './hooks/useStudentId';
 import { ClassListPage } from './pages/ClassListPage';
@@ -13,9 +14,17 @@ const NAV: { route: Route; label: string }[] = [
   { route: { name: 'admin' }, label: 'Class তৈরি (Admin)' },
 ];
 
+const TITLES: Record<Route['name'], string> = {
+  classes: 'Class তালিকা',
+  my: 'আমার আবেদন',
+  admin: 'Class তৈরি',
+  hold: 'আবেদন',
+};
+
 export function App() {
   const route = useHashRoute();
   const [studentId, setStudentId] = useStudentId();
+  useDocumentTitle(TITLES[route.name]);
 
   return (
     <div className="app">
