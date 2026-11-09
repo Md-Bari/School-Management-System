@@ -98,3 +98,15 @@ because it needs no retry loop and blocked requests simply wait their turn. That
   because the users are parents in Bangladesh.
 - **The API URL is configured at container start** (`API_BASE_URL` → `/config.js`), not baked in
   at build time, so changing it needs no rebuild. It must be the URL as seen by the *browser*.
+
+## Infrastructure
+
+- **.NET 10** (LTS). The brief says ".NET 8 or newer".
+- **Dapper + Npgsql instead of EF Core**, so the locking SQL is explicit and easy to review.
+  The schema is created at startup (`CREATE … IF NOT EXISTS` under an advisory lock) instead of
+  migrations; that is enough for two tables.
+- **PostgreSQL is not published to the host**, to avoid clashing with a local PostgreSQL on
+  5432. Tests run inside the compose network.
+- **`max_connections=300`** on PostgreSQL, because two backend processes, each with Npgsql's
+  default pool of 100, would otherwise be able to exhaust the default 100 under a burst.
+- Ports: backend 8080 (required), frontend 3000, optional second backend 8081.
