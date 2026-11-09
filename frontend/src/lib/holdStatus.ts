@@ -1,4 +1,5 @@
 import type { HoldStatus } from '../api/types';
+import { t } from '../i18n';
 
 /**
  * The server stores HELD until it notices expiry; the UI must not wait for that.
@@ -13,12 +14,16 @@ export function remainingMs(expiresAt: string, nowMs: number): number {
   return Math.max(0, Date.parse(expiresAt) - nowMs);
 }
 
-export const STATUS_LABELS: Record<HoldStatus, string> = {
-  HELD: 'Seat hold করা আছে',
-  CONFIRMED: 'ভর্তি নিশ্চিত',
-  EXPIRED: 'মেয়াদ শেষ',
-  CANCELLED: 'বাতিল',
-};
+export function statusLabel(status: HoldStatus): string {
+  return t(`status.${status}`);
+}
+
+/** Full length of the hold, for the countdown's progress bar (null if unknown). */
+export function holdLengthMs(createdAt: string | undefined, expiresAt: string): number | null {
+  if (!createdAt) return null;
+  const length = Date.parse(expiresAt) - Date.parse(createdAt);
+  return Number.isFinite(length) && length > 0 ? length : null;
+}
 
 /** 0 → "00:00", 65_000 → "01:05", 3_725_000 → "1:02:05" */
 export function formatDuration(ms: number): string {
