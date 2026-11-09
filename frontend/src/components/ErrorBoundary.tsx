@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { t } from '../i18n';
 
 interface State {
   hasError: boolean;
@@ -20,9 +21,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     if (this.state.hasError) {
       return (
         <div className="notice notice-error" role="alert">
-          <p>দুঃখিত, পাতাটি দেখাতে একটি সমস্যা হয়েছে।</p>
+          <p>{t('boundary.message')}</p>
           <button type="button" className="btn" onClick={() => window.location.reload()}>
-            পাতাটি আবার লোড করুন
+            {t('boundary.reload')}
           </button>
         </div>
       );
