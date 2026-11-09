@@ -1,3 +1,5 @@
+import { digits, t } from '../i18n';
+
 export const STUDENT_ID_LENGTH = 17;
 
 const BANGLA_DIGITS = '০১২৩৪৫৬৭৮৯';
@@ -20,16 +22,10 @@ export function isValidStudentId(value: string): boolean {
   return /^\d{17}$/.test(value);
 }
 
-/** Returns a Bangla validation message, or null if the (normalised) value is valid. */
+/** Returns a validation message in the current language, or null if the (normalised) value is valid. */
 export function studentIdError(value: string): string | null {
-  if (value.length === 0) return 'জন্ম নিবন্ধন নম্বর লিখুন।';
-  if (/\D/.test(value)) return 'শুধু সংখ্যা (০-৯) লিখুন।';
-  if (value.length !== STUDENT_ID_LENGTH) {
-    return `জন্ম নিবন্ধন নম্বর ১৭ অঙ্কের হতে হবে (এখন ${toBanglaDigits(value.length)} অঙ্ক)।`;
-  }
+  if (value.length === 0) return t('studentId.errEmpty');
+  if (/\D/.test(value)) return t('studentId.errDigits');
+  if (value.length !== STUDENT_ID_LENGTH) return t('studentId.errLength', { count: digits(value.length) });
   return null;
-}
-
-export function toBanglaDigits(n: number | string): string {
-  return String(n).replace(/\d/g, (d) => BANGLA_DIGITS[Number(d)]);
 }

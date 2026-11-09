@@ -1,4 +1,5 @@
-import { isValidStudentId, normalizeStudentId, studentIdError, toBanglaDigits } from './studentId';
+import { setLang } from '../i18n';
+import { isValidStudentId, normalizeStudentId, studentIdError } from './studentId';
 
 describe('studentId', () => {
   it('accepts exactly 17 ASCII digits', () => {
@@ -19,7 +20,8 @@ describe('studentId', () => {
     expect(studentIdError('20152691234567890')).toBeNull();
   });
 
-  it('renders numbers with Bangla digits', () => {
-    expect(toBanglaDigits('09:41')).toBe('০৯:৪১');
+  it('explains the problem in English when English is selected', () => {
+    setLang('en');
+    expect(studentIdError('12345')).toBe('The birth registration number must be 17 digits (currently 5).');
   });
 });
