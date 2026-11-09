@@ -84,3 +84,15 @@ For example, to watch a hold expire quickly:
 ```bash
 HOLD_DURATION_SECONDS=30 docker compose up
 ```
+
+## Bonus: two backend processes, one database
+
+```bash
+docker compose --profile multi up --build
+```
+
+This starts a second backend on **http://localhost:8081** against the same database. Both
+processes can take holds for the same class at the same time without overselling, because the
+seat check runs under a PostgreSQL row lock rather than an in-memory one. See
+[ASSUMPTIONS.md](ASSUMPTIONS.md#concurrency) for the full explanation. The test
+`TwoBackendProcessesSharingTheDatabase_NeverOversell` checks this automatically.
