@@ -7,6 +7,7 @@ import { Notice } from '../components/Notice';
 import { RefreshStatus } from '../components/RefreshStatus';
 import { navigate, routeHref } from '../hooks/useHashRoute';
 import { usePolling } from '../hooks/usePolling';
+import { digits, t } from '../i18n';
 import { effectiveStatus } from '../lib/holdStatus';
 
 export const CLASS_POLL_MS = 3000;
@@ -21,6 +22,9 @@ function activeHoldsByClass(holds: MyHold[] | undefined, nowMs: number): Map<str
   return map;
 }
 
+// Stored as data (not text) so the message follows the selected language.
+type ApplyMessage = { needId: true } | { error: unknown; showMyLink: boolean };
+
 /** Screen "Class তালিকা": seat counts refresh every few seconds without reloading. */
 export function ClassListPage({ studentId }: { studentId: string }) {
   const { data: classes, error, loading, lastUpdated, refresh } = usePolling(api.listClasses, CLASS_POLL_MS, 'classes');
@@ -34,12 +38,12 @@ export function ClassListPage({ studentId }: { studentId: string }) {
   // A student can be admitted to only one class.
   const admittedHold = myHolds?.find((h) => h.status === 'CONFIRMED');
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ text: string; showMyLink: boolean } | null>(null);
+  const [message, setMessage] = useState<ApplyMessage | null>(null);
 
   const apply = async (classId: string) => {
     setMessage(null);
     if (!studentId) {
-      setMessage({ text: 'আবেদন করতে আগে উপরের ঘরে শিক্ষার্থীর ১৭ অঙ্কের জন্ম নিবন্ধন নম্বর লিখুন।', showMyLink: false });
+      setMessage({ needId: true });
       document.getElementById('student-id')?.focus();
       return;
     }
@@ -50,7 +54,7 @@ export function ClassListPage({ studentId }: { studentId: string }) {
     } catch (e) {
       const code = errorCode(e);
       setMessage({
-        text: userMessage(e),
+        error: e,
         showMyLink: code === 'ALREADY_APPLIED' || code === 'ALREADY_CONFIRMED' || code === 'ALREADY_ADMITTED',
       });
       void refresh();
@@ -62,39 +66,34 @@ export function ClassListPage({ studentId }: { studentId: string }) {
 
   return (
     <section>
-      <h2>Class তালিকা</h2>
-      <p className="muted">
-        ভর্তি হয় “আগে আবেদন করলে আগে পাবে” ভিত্তিতে। আবেদন করলে seat কিছু সময়ের জন্য আপনার নামে hold থাকবে; এর মধ্যে
-        ভর্তি ফি দিলে ভর্তি নিশ্চিত হবে। একজন শিক্ষার্থী শুধু একটি class-এ ভর্তি হতে পারবে।
-      </p>
+      <h2>{t('classes.title')}</h2>
+      <p className="muted">{t('classes.intro')}</p>
 
-      {admittedHold && (
-        <Notice kind="success">
-          এই শিক্ষার্থী “{admittedHold.className}”-এ ভর্তি নিশ্চিত হয়েছে, তাই অন্য class-এ আর আবেদন করা যাবে না।
-        </Notice>
-      )}
+      {admittedHold && <Notice kind="success">{t('classes.admitted', { name: admittedHold.className })}</Notice>}
 
       {message && (
         <Notice kind="error" onClose={() => setMessage(null)}>
-          {message.text}{' '}
-          {message.showMyLink && <a href="#/my">আমার আবেদন দেখুন →</a>}
+          {'needId' in message ? t('classes.needId') : userMessage(message.error)}{' '}
+          {'showMyLink' in message && message.showMyLink && <a href="#/my">{t('common.seeMy')}</a>}
         </Notice>
       )}
 
-      {loading && !classes && <p>লোড হচ্ছে…</p>}
+      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData={Boolean(classes)} intervalMs={CLASS_POLL_MS} />
+
+      {loading && !classes && <p>{t('common.loading')}</p>}
 
       {!classes && error ? (
         <Notice kind="error">
           {userMessage(error)}{' '}
           <button type="button" className="btn btn-small" onClick={() => void refresh()}>
-            আবার চেষ্টা করুন
+            {t('common.retry')}
           </button>
         </Notice>
       ) : null}
 
       {classes && classes.length === 0 && (
         <Notice kind="info">
-          এখনও কোনো class তৈরি হয়নি। <a href="#/admin">Class তৈরি (Admin)</a> পাতা থেকে class যোগ করুন।
+          {t('classes.empty')} <a href="#/admin">{t('classes.emptyLink')}</a>
         </Notice>
       )}
 
@@ -103,54 +102,59 @@ export function ClassListPage({ studentId }: { studentId: string }) {
           <table className="class-table">
             <thead>
               <tr>
-                <th scope="col">Class</th>
-                <th scope="col" className="num">মোট seat</th>
-                <th scope="col" className="num">Hold-এ আছে</th>
-                <th scope="col" className="num">নিশ্চিত</th>
-                <th scope="col" className="num">খালি</th>
-                <th scope="col" aria-label="আবেদন" />
+                <th scope="col">{t('classes.col.class')}</th>
+                <th scope="col" className="num">{t('classes.col.total')}</th>
+                <th scope="col" className="num">{t('classes.col.held')}</th>
+                <th scope="col" className="num">{t('classes.col.confirmed')}</th>
+                <th scope="col" className="num">{t('classes.col.available')}</th>
+                <th scope="col" aria-label={t('classes.col.action')} />
               </tr>
             </thead>
             <tbody>
-              {classes.map((c) => (
-                <tr key={c.id}>
-                  <th scope="row">{c.name}</th>
-                  <td className="num" data-label="মোট seat">{c.totalSeats}</td>
-                  <td className="num" data-label="Hold-এ আছে">{c.heldSeats}</td>
-                  <td className="num" data-label="নিশ্চিত">{c.confirmedSeats}</td>
-                  <td className={`num ${c.availableSeats === 0 ? 'seats-full' : 'seats-open'}`} data-label="খালি">
-                    {c.availableSeats}
-                  </td>
-                  <td>
-                    {active.has(c.id) ? (
-                      <a className="existing-hold" href={routeHref({ name: 'hold', holdId: active.get(c.id)!.holdId })}>
-                        {active.get(c.id)!.status === 'CONFIRMED' ? 'ভর্তি নিশ্চিত ✓' : 'আবেদন করা আছে'} — দেখুন →
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        disabled={c.availableSeats === 0 || applyingTo !== null || Boolean(admittedHold)}
-                        onClick={() => void apply(c.id)}
-                      >
-                        {applyingTo === c.id
-                          ? 'আবেদন হচ্ছে…'
-                          : admittedHold
-                            ? 'অন্য class-এ ভর্তি হয়েছে'
-                            : c.availableSeats === 0
-                              ? 'seat নেই'
-                              : 'আবেদন করুন'}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {classes.map((c) => {
+                const mine = active.get(c.id);
+                return (
+                  <tr key={c.id}>
+                    <th scope="row">{c.name}</th>
+                    <td className="num" data-label={t('classes.col.total')}>{digits(c.totalSeats)}</td>
+                    <td className="num" data-label={t('classes.col.held')}>{digits(c.heldSeats)}</td>
+                    <td className="num" data-label={t('classes.col.confirmed')}>{digits(c.confirmedSeats)}</td>
+                    <td
+                      className={`num ${c.availableSeats === 0 ? 'seats-full' : 'seats-open'}`}
+                      data-label={t('classes.col.available')}
+                    >
+                      {digits(c.availableSeats)}
+                    </td>
+                    <td>
+                      {mine ? (
+                        <a className="existing-hold" href={routeHref({ name: 'hold', holdId: mine.holdId })}>
+                          {mine.status === 'CONFIRMED' ? t('classes.existingConfirmed') : t('classes.existingHeld')} —{' '}
+                          {t('classes.view')}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={c.availableSeats === 0 || applyingTo !== null || Boolean(admittedHold)}
+                          onClick={() => void apply(c.id)}
+                        >
+                          {applyingTo === c.id
+                            ? t('classes.applying')
+                            : admittedHold
+                              ? t('classes.admittedElsewhere')
+                              : c.availableSeats === 0
+                                ? t('classes.full')
+                                : t('classes.apply')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
-
-      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData={Boolean(classes)} />
     </section>
   );
 }
