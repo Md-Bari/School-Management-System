@@ -1,24 +1,35 @@
 import { userMessage } from '../api/errors';
+import { digits, t } from '../i18n';
 
 interface Props {
   lastUpdated: Date | null;
   error: unknown;
   hasData: boolean;
+  /** How often the data refreshes, shown to the user. */
+  intervalMs?: number;
 }
 
-/** Shows when data was last refreshed, and warns (without hiding old data) if refreshing fails. */
-export function RefreshStatus({ lastUpdated, error, hasData }: Props) {
+/**
+ * A "live" badge: pulsing green dot while data refreshes automatically, amber warning (with the
+ * old data kept on screen) if refreshing fails.
+ */
+export function RefreshStatus({ lastUpdated, error, hasData, intervalMs }: Props) {
   if (error && hasData) {
     return (
-      <p className="refresh-status refresh-stale" role="status">
-        ⚠ হালনাগাদ করা যাচ্ছে না — শেষ পাওয়া তথ্য দেখানো হচ্ছে। {userMessage(error)}
+      <p className="live live-stale" role="status">
+        <span className="live-dot" aria-hidden="true" />
+        {t('refresh.stale')} {userMessage(error)}
       </p>
     );
   }
   if (!lastUpdated) return null;
   return (
-    <p className="refresh-status">
-      স্বয়ংক্রিয়ভাবে হালনাগাদ হচ্ছে · শেষ হালনাগাদ {lastUpdated.toLocaleTimeString('en-GB')}
+    <p className="live">
+      <span className="live-dot" aria-hidden="true" />
+      {intervalMs ? <span>{t('refresh.live', { seconds: digits(intervalMs / 1000) })}</span> : null}
+      <span className="live-time">
+        {t('refresh.last')} {digits(lastUpdated.toLocaleTimeString('en-GB'))}
+      </span>
     </p>
   );
 }
