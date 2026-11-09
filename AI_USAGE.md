@@ -50,6 +50,12 @@ the brief's rules one by one before they were accepted.
   and a headless browser walked through: create class → enter ID (in Bangla digits) → apply →
   countdown → reload (ID and application still there) → pay → my applications → re-apply
   (readable error).
+- With `HOLD_DURATION_SECONDS=8`, a browser test confirmed the hold turns `EXPIRED`, the pay
+  button is disabled without a reload, and the seat shows as free again on the class list.
+- `docker compose down` + `up` was run to confirm data survives a restart, and a second backend
+  (`--profile multi`, port 8081) was checked to see the same data.
+- `npm audit` flagged advisories in the dev/test tooling (Vitest, esbuild). The tooling was
+  upgraded (Vite 8, Vitest 5) and all tests and the build were re-run: 0 vulnerabilities.
 
 ## My own review
 
