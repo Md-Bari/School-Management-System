@@ -65,6 +65,9 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
         await using var conn = await dataSource.OpenConnectionAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
+        // 0. Lock the student, so their applications in different classes are handled one at a time.
+        await LockStudentAsync(conn, tx, studentId, ct);
+
         // 1. Lock the class row: from here on, nobody else can change seats for this class.
         var cls = await conn.QuerySingleOrDefaultAsync<ClassRow>(new CommandDefinition(
             "SELECT id, name, total_seats FROM classes WHERE id = @classId FOR UPDATE",
@@ -89,6 +92,12 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
         {
             throw ApiException.Conflict(ErrorCodes.AlreadyApplied,
                 "This student already has an active application for this class.");
+        }
+
+        // A student can be admitted to only one class: no new applications once admitted anywhere.
+        if (await AdmittedClassNameAsync(conn, tx, studentId, null, ct) is { } admittedIn)
+        {
+            throw AlreadyAdmitted(admittedIn);
         }
 
         // 4. Rule 1: held + confirmed must never exceed totalSeats.
@@ -179,11 +188,35 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
                 throw HoldExpired();
             }
 
-            var confirmed = await conn.QuerySingleAsync<HoldRow>(new CommandDefinition("""
-                UPDATE holds SET status = 'CONFIRMED', confirmed_at = @now
-                WHERE id = @holdId
-                RETURNING id, class_id, student_id, status, created_at, expires_at, confirmed_at
-                """, new { holdId, now }, tx, cancellationToken: ct));
+            // A student can be admitted to only one class.
+            if (await AdmittedClassNameAsync(conn, tx, hold.StudentId, holdId, ct) is { } admittedIn)
+            {
+                throw AlreadyAdmitted(admittedIn);
+            }
+
+            HoldRow confirmed;
+            try
+            {
+                confirmed = await conn.QuerySingleAsync<HoldRow>(new CommandDefinition("""
+                    UPDATE holds SET status = 'CONFIRMED', confirmed_at = @now
+                    WHERE id = @holdId
+                    RETURNING id, class_id, student_id, status, created_at, expires_at, confirmed_at
+                    """, new { holdId, now }, tx, cancellationToken: ct));
+            }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+            {
+                // Unreachable while the student lock is held; database-level safety net.
+                throw ApiException.Conflict(ErrorCodes.AlreadyAdmitted,
+                    "This student is already admitted to another class. A student can be admitted to only one class.");
+            }
+
+            // The student's other pending applications can never be confirmed now, so release
+            // those seats for other students straight away instead of waiting for them to expire.
+            await conn.ExecuteAsync(new CommandDefinition("""
+                UPDATE holds SET status = 'CANCELLED', cancelled_at = @now
+                WHERE student_id = @studentId AND status = 'HELD' AND id <> @holdId AND expires_at > @now
+                """, new { studentId = hold.StudentId, holdId, now }, tx, cancellationToken: ct));
+
             await tx.CommitAsync(ct);
             return confirmed;
         }
@@ -265,7 +298,8 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
 
             tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
-            // Same lock order as CreateHoldAsync: class first, then hold.
+            // Same lock order as CreateHoldAsync: student, then class, then hold.
+            await LockStudentAsync(conn, tx, studentId, ct);
             await conn.ExecuteAsync(new CommandDefinition(
                 "SELECT 1 FROM classes WHERE id = @classId FOR UPDATE", new { classId }, tx, cancellationToken: ct));
 
@@ -288,6 +322,28 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
             throw;
         }
     }
+
+    /// <summary>
+    /// Serialises all hold/confirm/cancel work of one student (across every backend process), so
+    /// "admitted to only one class" cannot be beaten by confirming two classes at the same time.
+    /// Always taken before the class lock: lock order is student → class → hold.
+    /// </summary>
+    private static Task LockStudentAsync(NpgsqlConnection conn, NpgsqlTransaction tx, string studentId, CancellationToken ct) =>
+        conn.ExecuteAsync(new CommandDefinition(
+            "SELECT pg_advisory_xact_lock(hashtextextended(@studentId, 727))",
+            new { studentId }, tx, cancellationToken: ct));
+
+    private static Task<string?> AdmittedClassNameAsync(
+        NpgsqlConnection conn, NpgsqlTransaction tx, string studentId, string? exceptHoldId, CancellationToken ct) =>
+        conn.QueryFirstOrDefaultAsync<string?>(new CommandDefinition("""
+            SELECT c.name FROM holds h JOIN classes c ON c.id = h.class_id
+            WHERE h.student_id = @studentId AND h.status = 'CONFIRMED' AND (@exceptHoldId::text IS NULL OR h.id <> @exceptHoldId)
+            LIMIT 1
+            """, new { studentId, exceptHoldId }, tx, cancellationToken: ct));
+
+    private static ApiException AlreadyAdmitted(string className) =>
+        ApiException.Conflict(ErrorCodes.AlreadyAdmitted,
+            $"This student is already admitted to \"{className}\". A student can be admitted to only one class.");
 
     private static Task<DateTime> DbNowAsync(NpgsqlConnection conn, NpgsqlTransaction tx, CancellationToken ct) =>
         // clock_timestamp() (not now()) because now() is frozen at transaction start, which may be
