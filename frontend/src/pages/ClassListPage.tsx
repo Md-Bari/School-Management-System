@@ -1,16 +1,36 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { serverNow } from '../api/clock';
 import { api } from '../api/client';
 import { errorCode, userMessage } from '../api/errors';
+import type { MyHold } from '../api/types';
 import { Notice } from '../components/Notice';
 import { RefreshStatus } from '../components/RefreshStatus';
-import { navigate } from '../hooks/useHashRoute';
+import { navigate, routeHref } from '../hooks/useHashRoute';
 import { usePolling } from '../hooks/usePolling';
+import { effectiveStatus } from '../lib/holdStatus';
 
 export const CLASS_POLL_MS = 3000;
+
+/** classId → the student's live (HELD and not expired, or CONFIRMED) application, if any. */
+function activeHoldsByClass(holds: MyHold[] | undefined, nowMs: number): Map<string, MyHold> {
+  const map = new Map<string, MyHold>();
+  for (const h of holds ?? []) {
+    const status = effectiveStatus(h.status, h.expiresAt, nowMs);
+    if (status === 'HELD' || status === 'CONFIRMED') map.set(h.classId, { ...h, status });
+  }
+  return map;
+}
 
 /** Screen "Class তালিকা": seat counts refresh every few seconds without reloading. */
 export function ClassListPage({ studentId }: { studentId: string }) {
   const { data: classes, error, loading, lastUpdated, refresh } = usePolling(api.listClasses, CLASS_POLL_MS, 'classes');
+  const fetchMine = useCallback(
+    () => (studentId ? api.myHolds(studentId) : Promise.resolve<MyHold[]>([])),
+    [studentId],
+  );
+  const { data: myHolds, refresh: refreshMine } = usePolling(fetchMine, CLASS_POLL_MS, `me:${studentId}`);
+  // Recomputed on every render (at least every poll), so an expiring hold drops out on time.
+  const active = activeHoldsByClass(myHolds, serverNow());
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; showMyLink: boolean } | null>(null);
 
@@ -29,6 +49,7 @@ export function ClassListPage({ studentId }: { studentId: string }) {
       const code = errorCode(e);
       setMessage({ text: userMessage(e), showMyLink: code === 'ALREADY_APPLIED' || code === 'ALREADY_CONFIRMED' });
       void refresh();
+      void refreshMine();
     } finally {
       setApplyingTo(null);
     }
@@ -90,14 +111,20 @@ export function ClassListPage({ studentId }: { studentId: string }) {
                     {c.availableSeats}
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={c.availableSeats === 0 || applyingTo !== null}
-                      onClick={() => void apply(c.id)}
-                    >
-                      {applyingTo === c.id ? 'আবেদন হচ্ছে…' : c.availableSeats === 0 ? 'seat নেই' : 'আবেদন করুন'}
-                    </button>
+                    {active.has(c.id) ? (
+                      <a className="existing-hold" href={routeHref({ name: 'hold', holdId: active.get(c.id)!.holdId })}>
+                        {active.get(c.id)!.status === 'CONFIRMED' ? 'ভর্তি নিশ্চিত ✓' : 'আবেদন করা আছে'} — দেখুন →
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={c.availableSeats === 0 || applyingTo !== null}
+                        onClick={() => void apply(c.id)}
+                      >
+                        {applyingTo === c.id ? 'আবেদন হচ্ছে…' : c.availableSeats === 0 ? 'seat নেই' : 'আবেদন করুন'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

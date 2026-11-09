@@ -293,6 +293,11 @@ input[aria-invalid='true'] {
   font-weight: 600;
 }
 
+.existing-hold {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
 /* ---- holds -------------------------------------------------------------------- */
 
 .hold-list {
