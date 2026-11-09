@@ -4,11 +4,9 @@
 set -eu
 
 API_BASE_URL="${API_BASE_URL:-http://localhost:8080}"
-# Escape characters that would break the JS string literal.
-ESCAPED=$(printf '%s' "$API_BASE_URL" | sed 's/\/\\/g; s/"/\\"/g')
+# A URL never contains quotes or backslashes; drop them so the JS string literal stays valid.
+SAFE_URL=$(printf '%s' "$API_BASE_URL" | tr -d '"\')
 
-cat > /usr/share/nginx/html/config.js <<CONFIG
-window.__APP_CONFIG__ = { apiBaseUrl: "${ESCAPED}" };
-CONFIG
+printf 'window.__APP_CONFIG__ = { apiBaseUrl: "%s" };\n' "$SAFE_URL" > /usr/share/nginx/html/config.js
 
-echo "app-config: API_BASE_URL=${API_BASE_URL}"
+echo "app-config: API_BASE_URL=${SAFE_URL}"
