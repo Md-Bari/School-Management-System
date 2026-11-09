@@ -116,3 +116,24 @@ header (17-digit birth registration number).
 Every error body has the same shape: `{ "error": "NO_SEATS", "message": "...", "details": null }`.
 Responses follow the field names in the brief exactly. A few extra fields are appended (e.g.
 `className` on holds) and every response carries an `X-Server-Time` header.
+
+## Project structure
+
+```
+backend/
+  src/SchoolAdmission.Api/
+    Endpoints/        HTTP routes + response contracts
+    Services/         AdmissionService (all seat logic), expired-hold sweeper
+    Data/             schema initializer, row models
+    Infrastructure/   config, errors, middleware, JSON date format
+  tests/SchoolAdmission.Api.Tests/   xUnit integration + concurrency tests
+  Dockerfile          build → test → runtime stages
+frontend/
+  src/api/            typed client, error→Bangla messages, server clock offset
+  src/hooks/          usePolling, useNow, useStudentId, useHashRoute
+  src/components/     HoldActions, StudentIdBar, Countdown, ErrorBoundary, …
+  src/pages/          ClassList, CreateClass, Hold (application), MyHolds
+  docker/             writes config.js from API_BASE_URL at container start
+  Dockerfile          build → test → nginx stages
+docker-compose.yml    db + backend + frontend (+ `multi` and `test` profiles)
+```
