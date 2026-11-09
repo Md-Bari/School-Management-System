@@ -96,3 +96,23 @@ processes can take holds for the same class at the same time without overselling
 seat check runs under a PostgreSQL row lock rather than an in-memory one. See
 [ASSUMPTIONS.md](ASSUMPTIONS.md#concurrency) for the full explanation. The test
 `TwoBackendProcessesSharingTheDatabase_NeverOversell` checks this automatically.
+
+## API summary
+
+Base URL `http://localhost:8080`, JSON everywhere, student identity in the `X-Student-Id`
+header (17-digit birth registration number).
+
+| # | Method & path | Success | Notable errors |
+|---|---|---|---|
+| 1 | `POST /classes` | 201 | 400 `VALIDATION_ERROR`, `INVALID_JSON` |
+| 2 | `GET /classes` | 200 | |
+| 3 | `GET /classes/{classId}` | 200 | 404 `CLASS_NOT_FOUND` |
+| 4 | `POST /classes/{classId}/holds` | 201 | 409 `NO_SEATS`, `ALREADY_APPLIED`, `ALREADY_CONFIRMED`; 400 `MISSING_STUDENT_ID`, `INVALID_STUDENT_ID` |
+| 5 | `GET /holds/{holdId}` | 200 | 404 `HOLD_NOT_FOUND` |
+| 6 | `POST /holds/{holdId}/confirm` | 200 (idempotent) | 409 `HOLD_EXPIRED`, `HOLD_CANCELLED`; 403 `NOT_YOUR_HOLD` |
+| 7 | `DELETE /holds/{holdId}` | 204 | 409 `HOLD_EXPIRED`, `CANNOT_CANCEL_CONFIRMED`; 403 `NOT_YOUR_HOLD` |
+| 8 | `GET /me/holds` | 200 | 400 without `X-Student-Id` |
+
+Every error body has the same shape: `{ "error": "NO_SEATS", "message": "...", "details": null }`.
+Responses follow the field names in the brief exactly. A few extra fields are appended (e.g.
+`className` on holds) and every response carries an `X-Server-Time` header.
