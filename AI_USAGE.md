@@ -43,7 +43,7 @@ the brief's rules one by one before they were accepted.
 
 ## How the output was verified
 
-- All backend tests run against a real PostgreSQL in Docker (36 tests, including 150
+- All backend tests run against a real PostgreSQL in Docker (39 tests, including 150
   simultaneous requests on 20 seats and two API instances in parallel).
 - All frontend tests run in a Node container.
 - The whole stack was started with `docker compose up`, every endpoint was called with `curl`,
