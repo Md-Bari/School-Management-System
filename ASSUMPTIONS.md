@@ -82,3 +82,19 @@ because it needs no retry loop and blocked requests simply wait their turn. That
 - Bad input → `400`, unknown id or route → `404`, wrong owner → `403`, business-rule
   conflicts → `409`. If the database is unreachable the API answers `503` (not `500`), so the
   UI can say "try again shortly". `500` is reserved for real bugs.
+
+## Frontend
+
+- **Live updates by polling**: class list every 3 s, application pages every 5 s. This is simple,
+  needs no extra infrastructure, and is enough for "every few seconds" (rule 10).
+- **Countdown runs in the browser**, so a hold turns `EXPIRED` and the pay button is disabled
+  exactly at 0:00 without waiting for the next poll or a reload (rule 9). The backend sends
+  `X-Server-Time` on every response and the UI corrects for a wrong device clock.
+- **Persistence across refresh / browser restart** (rule 11): the student ID is stored in
+  `localStorage`, and applications are always re-fetched from the server (`/me/holds`). The
+  application page lives at a URL (`#/holds/<id>`), so a refresh stays on it.
+- If a refresh fails, the last good data stays on screen with a warning instead of disappearing.
+- **The UI is in Bangla** (with the English terms the brief itself uses: class, seat, hold),
+  because the users are parents in Bangladesh.
+- **The API URL is configured at container start** (`API_BASE_URL` → `/config.js`), not baked in
+  at build time, so changing it needs no rebuild. It must be the URL as seen by the *browser*.
