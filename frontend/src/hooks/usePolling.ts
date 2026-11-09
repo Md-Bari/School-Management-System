@@ -44,12 +44,23 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs: number, key
       }
     };
 
+    // Refresh right away when the user comes back to the tab or the network returns,
+    // instead of showing stale numbers until the next tick.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void run();
+    };
+    const onOnline = () => void run();
+
     runRef.current = run;
     void run();
     const id = setInterval(run, intervalMs);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
     return () => {
       active = false;
       clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
     };
   }, [key, intervalMs]);
 
