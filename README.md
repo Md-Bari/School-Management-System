@@ -40,7 +40,7 @@ Later starts are fast. Stop with `Ctrl+C` or `docker compose down`. Data is kept
 Both test suites run inside Docker, so no SDK is needed:
 
 ```bash
-# Backend: 33 xUnit integration tests against a real PostgreSQL
+# Backend: 36 xUnit integration tests against a real PostgreSQL
 # (each run creates a throw-away database and drops it afterwards)
 docker compose --profile test run --rm backend-tests
 
