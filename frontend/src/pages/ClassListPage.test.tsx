@@ -30,6 +30,20 @@ describe('ClassListPage', () => {
     expect(screen.getByRole('link', { name: /ভর্তি নিশ্চিত/ })).toHaveAttribute('href', '#/holds/h_5');
   });
 
+  it('blocks applying to other classes once the student is admitted somewhere', async () => {
+    const other = { ...CLASS, id: 'c_2', name: 'Class 6 - Day Shift' };
+    vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS, other]);
+    vi.spyOn(api, 'myHolds').mockResolvedValue([
+      { holdId: 'h_5', classId: 'c_1', className: CLASS.name, status: 'CONFIRMED', expiresAt: '2020-01-01T00:00:00Z' },
+    ]);
+
+    render(<ClassListPage studentId={STUDENT} />);
+    await flush();
+
+    expect(screen.getByRole('button', { name: 'অন্য class-এ ভর্তি হয়েছে' })).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Class 6 - Morning Shift');
+  });
+
   it('offers to apply again once the old hold has expired', async () => {
     vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS]);
     vi.spyOn(api, 'myHolds').mockResolvedValue([
