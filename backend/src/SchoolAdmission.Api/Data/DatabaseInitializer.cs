@@ -39,6 +39,29 @@ public sealed class DatabaseInitializer(NpgsqlDataSource dataSource, ILogger<Dat
             ON holds (class_id, student_id) WHERE status IN ('HELD', 'CONFIRMED');
         """;
 
+    /// <summary>
+    /// Database-level safety net for "a student can be admitted to only one class": at most one
+    /// CONFIRMED row per student. Created separately so that a database which already holds
+    /// duplicate admissions (from before this rule) still starts; the service enforces the rule
+    /// either way.
+    /// </summary>
+    private async Task CreateOneAdmissionPerStudentIndexAsync(NpgsqlConnection conn, CancellationToken ct)
+    {
+        try
+        {
+            await using var cmd = new NpgsqlCommand(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_holds_one_admission_per_student ON holds (student_id) WHERE status = 'CONFIRMED'",
+                conn);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            logger.LogWarning(
+                "Existing data has a student confirmed in more than one class, so the one-admission index was not created. " +
+                "The rule is still enforced by the application. Reset the data (docker compose down -v) to add the index.");
+        }
+    }
+
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         var attempt = 0;
@@ -57,6 +80,7 @@ public sealed class DatabaseInitializer(NpgsqlDataSource dataSource, ILogger<Dat
                 {
                     await using var cmd = new NpgsqlCommand(Schema, conn);
                     await cmd.ExecuteNonQueryAsync(cancellationToken);
+                    await CreateOneAdmissionPerStudentIndexAsync(conn, cancellationToken);
                 }
                 finally
                 {
