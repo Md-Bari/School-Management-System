@@ -137,3 +137,20 @@ frontend/
   Dockerfile          build → test → nginx stages
 docker-compose.yml    db + backend + frontend (+ `multi` and `test` profiles)
 ```
+
+## Troubleshooting
+
+- **`Bind for 0.0.0.0:8080 failed: port is already allocated`**: another program uses port
+  8080. Stop it, or run the backend on another port and tell the frontend where it is:
+  create a `docker-compose.override.yml` with
+  `services: { backend: { ports: !override ["18080:8080"] } }` and start with
+  `API_BASE_URL=http://localhost:18080 docker compose up`.
+- **The UI says it cannot reach the server**: check `docker compose ps` and
+  `docker compose logs backend`. The backend waits for PostgreSQL to be healthy before starting.
+- **Start from an empty database**: `docker compose down -v`.
+
+## More documentation
+
+- [ASSUMPTIONS.md](ASSUMPTIONS.md): decisions where the brief was open, and why
+- [AI_USAGE.md](AI_USAGE.md): how AI tools were used
+- [BUILD_PLAN.md](BUILD_PLAN.md): architecture and the plan the project was built from
