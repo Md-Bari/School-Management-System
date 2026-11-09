@@ -44,4 +44,21 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 2, name: /নতুন Class তৈরি/ })).toBeInTheDocument();
     expect(document.title).toContain('Class তৈরি');
   });
+
+  it('switches the whole UI to English and back, and remembers the choice', async () => {
+    render(<App />);
+    await flush();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to English' }));
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('School Admission — Online Application');
+    expect(screen.getByRole('heading', { level: 2, name: 'Class list' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'My applications' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/birth registration number/)).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe('en');
+    expect(window.localStorage.getItem('admission.lang')).toBe('en');
+
+    fireEvent.click(screen.getByRole('button', { name: 'বাংলায় দেখুন' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Class তালিকা' })).toBeInTheDocument();
+  });
 });
