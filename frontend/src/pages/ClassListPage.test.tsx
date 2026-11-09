@@ -66,7 +66,7 @@ describe('ClassListPage', () => {
     render(<ClassListPage studentId={STUDENT} />);
     await flush();
     expect(screen.getByText('Class 6 - Morning Shift')).toBeInTheDocument();
-    expect(screen.getByText('25')).toBeInTheDocument();
+    expect(screen.getByText('২৫')).toBeInTheDocument();
 
     await act(async () => {
       vi.advanceTimersByTime(CLASS_POLL_MS);
@@ -74,7 +74,7 @@ describe('ClassListPage', () => {
     await flush();
 
     expect(list).toHaveBeenCalledTimes(2);
-    expect(screen.getByText('24')).toBeInTheDocument();
+    expect(screen.getByText('২৪')).toBeInTheDocument();
   });
 
   it('explains a full class in plain language', async () => {
