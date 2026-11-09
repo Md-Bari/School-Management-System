@@ -34,3 +34,36 @@ Later starts are fast. Stop with `Ctrl+C` or `docker compose down`. Data is kept
    Press **আবেদন করুন** to apply.
 4. **আবেদন** page: live countdown, **ভর্তি ফি দিন** (simulated successful payment) and **বাতিল**.
 5. **আমার আবেদন**: all applications of this student and their status.
+
+## Run the tests
+
+Both test suites run inside Docker, so no SDK is needed:
+
+```bash
+# Backend: 33 xUnit integration tests against a real PostgreSQL
+# (each run creates a throw-away database and drops it afterwards)
+docker compose --profile test run --rm backend-tests
+
+# Frontend: Vitest + Testing Library
+docker compose --profile test run --rm frontend-tests
+```
+
+Backend tests include the required **concurrency test**: 150 simultaneous hold requests on
+a 20-seat class must give exactly 20 holds. They also cover two API instances sharing one
+database (bonus), one student firing 30 parallel requests, 20 parallel confirms of the same
+hold, expiry with 2-second holds, ownership checks and 4xx on bad input.
+
+<details>
+<summary>Running tests without Docker (optional)</summary>
+
+Needs the .NET 10 SDK / Node 20+ and a PostgreSQL you can reach.
+
+```bash
+# backend: point the tests at any PostgreSQL server (a database is created per run)
+export TEST_DB_CONNECTION_STRING="Host=localhost;Port=5432;Username=postgres;Password=postgres;Database=postgres"
+cd backend && dotnet test
+
+# frontend
+cd frontend && npm ci && npm test
+```
+</details>
