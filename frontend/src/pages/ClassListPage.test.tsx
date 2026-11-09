@@ -13,6 +13,35 @@ async function flush() {
 }
 
 describe('ClassListPage', () => {
+  beforeEach(() => {
+    vi.spyOn(api, 'myHolds').mockResolvedValue([]);
+  });
+
+  it('links to the existing application instead of offering to apply again', async () => {
+    vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS]);
+    vi.spyOn(api, 'myHolds').mockResolvedValue([
+      { holdId: 'h_5', classId: 'c_1', className: CLASS.name, status: 'CONFIRMED', expiresAt: '2020-01-01T00:00:00Z' },
+    ]);
+
+    render(<ClassListPage studentId={STUDENT} />);
+    await flush();
+
+    expect(screen.queryByRole('button', { name: 'আবেদন করুন' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ভর্তি নিশ্চিত/ })).toHaveAttribute('href', '#/holds/h_5');
+  });
+
+  it('offers to apply again once the old hold has expired', async () => {
+    vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS]);
+    vi.spyOn(api, 'myHolds').mockResolvedValue([
+      { holdId: 'h_6', classId: 'c_1', className: CLASS.name, status: 'HELD', expiresAt: '2020-01-01T00:00:00Z' },
+    ]);
+
+    render(<ClassListPage studentId={STUDENT} />);
+    await flush();
+
+    expect(screen.getByRole('button', { name: 'আবেদন করুন' })).toBeEnabled();
+  });
+
   it('shows seat counts and refreshes them on a timer without reloading', async () => {
     vi.useFakeTimers();
     const list = vi
