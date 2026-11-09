@@ -22,3 +22,16 @@ Where the brief was not explicit, this is what I assumed and why.
   Strings, fractions, negatives and missing fields are `400`.
 - Classes cannot be edited or deleted. The brief has no endpoint for it, and changing seats
   under live holds would need its own rules.
+
+## Holds and expiry
+
+- **Expiry is lazy and exact.** A `HELD` hold whose `expires_at` has passed is treated as
+  `EXPIRED` everywhere (counts, `GET /holds`, `/me/holds`) at that moment. No background job or
+  API call is needed for the seat to come back (rule 2). A sweeper also rewrites such rows to
+  `EXPIRED` every 30 s, but only to keep the stored column tidy; correctness does not depend on it.
+- **One clock: the database's.** All times come from PostgreSQL `clock_timestamp()`, so several
+  backend processes with slightly different clocks still agree on expiry.
+- **`expiresAt` is whole seconds** (`2026-11-01T04:10:00Z`, like the brief). The stored expiry is
+  truncated to the second, so a hold lasts between `HOLD_DURATION_SECONDS − 1` and
+  `HOLD_DURATION_SECONDS` seconds.
+- An invalid or non-positive `HOLD_DURATION_SECONDS` falls back to 600 with a warning.
