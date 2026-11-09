@@ -40,7 +40,7 @@ Later starts are fast. Stop with `Ctrl+C` or `docker compose down`. Data is kept
 Both test suites run inside Docker, so no SDK is needed:
 
 ```bash
-# Backend: 36 xUnit integration tests against a real PostgreSQL
+# Backend: 39 xUnit integration tests against a real PostgreSQL
 # (each run creates a throw-away database and drops it afterwards)
 docker compose --profile test run --rm backend-tests
 
@@ -51,7 +51,8 @@ docker compose --profile test run --rm frontend-tests
 Backend tests include the required **concurrency test**: 150 simultaneous hold requests on
 a 20-seat class must give exactly 20 holds. They also cover two API instances sharing one
 database (bonus), one student firing 30 parallel requests, 20 parallel confirms of the same
-hold, expiry with 2-second holds, ownership checks and 4xx on bad input.
+hold, a student confirming 5 classes at once (admitted exactly once), expiry with 2-second
+holds, ownership checks and 4xx on bad input.
 
 <details>
 <summary>Running tests without Docker (optional)</summary>
@@ -107,9 +108,9 @@ header (17-digit birth registration number).
 | 1 | `POST /classes` | 201 | 400 `VALIDATION_ERROR`, `INVALID_JSON` |
 | 2 | `GET /classes` | 200 | |
 | 3 | `GET /classes/{classId}` | 200 | 404 `CLASS_NOT_FOUND` |
-| 4 | `POST /classes/{classId}/holds` | 201 | 409 `NO_SEATS`, `ALREADY_APPLIED`, `ALREADY_CONFIRMED`; 400 `MISSING_STUDENT_ID`, `INVALID_STUDENT_ID` |
+| 4 | `POST /classes/{classId}/holds` | 201 | 409 `NO_SEATS`, `ALREADY_APPLIED`, `ALREADY_CONFIRMED`, `ALREADY_ADMITTED`; 400 `MISSING_STUDENT_ID`, `INVALID_STUDENT_ID` |
 | 5 | `GET /holds/{holdId}` | 200 | 404 `HOLD_NOT_FOUND` |
-| 6 | `POST /holds/{holdId}/confirm` | 200 (idempotent) | 409 `HOLD_EXPIRED`, `HOLD_CANCELLED`; 403 `NOT_YOUR_HOLD` |
+| 6 | `POST /holds/{holdId}/confirm` | 200 (idempotent) | 409 `HOLD_EXPIRED`, `HOLD_CANCELLED`, `ALREADY_ADMITTED`; 403 `NOT_YOUR_HOLD` |
 | 7 | `DELETE /holds/{holdId}` | 204 | 409 `HOLD_EXPIRED`, `CANNOT_CANCEL_CONFIRMED`; 403 `NOT_YOUR_HOLD` |
 | 8 | `GET /me/holds` | 200 | 400 without `X-Student-Id` |
 
