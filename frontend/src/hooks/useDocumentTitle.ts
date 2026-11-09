@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
+import { t, useLang } from '../i18n';
 
-const APP_NAME = 'স্কুল ভর্তি';
-
-/** Sets the browser tab title, e.g. "আমার আবেদন · স্কুল ভর্তি". */
+/** Sets the browser tab title, e.g. "আমার আবেদন · স্কুল ভর্তি", in the current language. */
 export function useDocumentTitle(pageTitle: string): void {
+  const { lang } = useLang();
   useEffect(() => {
-    document.title = pageTitle ? `${pageTitle} · ${APP_NAME}` : APP_NAME;
-  }, [pageTitle]);
+    const appName = t('app.short');
+    document.title = pageTitle ? `${pageTitle} · ${appName}` : appName;
+  }, [pageTitle, lang]);
 }
