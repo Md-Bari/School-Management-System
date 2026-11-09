@@ -113,6 +113,51 @@ public sealed class HoldLifecycleTests(ApiFixture fixture)
     }
 
     [Fact]
+    public async Task CancellingTwice_IsIdempotent()
+    {
+        var client = fixture.Factory.CreateClient();
+        var classId = await client.CreateClassAsync(2);
+        var studentId = TestHelpers.NewStudentId();
+        var holdId = (await (await client.PostHoldAsync(classId, studentId)).JsonAsync()).GetProperty("holdId").GetString()!;
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.CancelAsync(holdId, studentId)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.CancelAsync(holdId, studentId)).StatusCode);
+        Assert.Equal(2, (await client.GetJsonAsync($"/classes/{classId}")).GetProperty("availableSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task ConfirmedSeats_CountTowardsCapacity()
+    {
+        var client = fixture.Factory.CreateClient();
+        var classId = await client.CreateClassAsync(2);
+        foreach (var _ in Enumerable.Range(0, 2))
+        {
+            var s = TestHelpers.NewStudentId();
+            var holdId = (await (await client.PostHoldAsync(classId, s)).JsonAsync()).GetProperty("holdId").GetString()!;
+            Assert.Equal(HttpStatusCode.OK, (await client.ConfirmAsync(holdId, s)).StatusCode);
+        }
+
+        var late = await client.PostHoldAsync(classId, TestHelpers.NewStudentId());
+        Assert.Equal(HttpStatusCode.Conflict, late.StatusCode);
+        Assert.Equal("NO_SEATS", await late.ErrorCodeAsync());
+
+        var cls = await client.GetJsonAsync($"/classes/{classId}");
+        Assert.Equal(2, cls.GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(0, cls.GetProperty("availableSeats").GetInt32());
+    }
+
+    [Fact]
+    public async Task ExpiresAt_UsesTheDocumentedUtcFormat()
+    {
+        var client = fixture.Factory.CreateClient();
+        var classId = await client.CreateClassAsync(1);
+        var hold = await (await client.PostHoldAsync(classId, TestHelpers.NewStudentId())).JsonAsync();
+
+        // Same shape as the brief's example: "2026-11-01T04:10:00Z"
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", hold.GetProperty("expiresAt").GetString());
+    }
+
+    [Fact]
     public async Task ConfirmedStudent_CannotApplyAgainToSameClass()
     {
         var client = fixture.Factory.CreateClient();
