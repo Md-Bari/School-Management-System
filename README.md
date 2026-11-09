@@ -32,8 +32,10 @@ Later starts are fast. Stop with `Ctrl+C` or `docker compose down`. Data is kept
    in the browser, and Bangla digits are accepted.
 3. **Class তালিকা**: total / held / confirmed / free seats, refreshed every 3 seconds.
    Press **আবেদন করুন** to apply.
-4. **আবেদন** page: live countdown, **ভর্তি ফি দিন** (simulated successful payment) and **বাতিল**.
+4. **আবেদন** page: a large countdown with a progress bar (green → amber → red in the last
+   minute), **ভর্তি ফি দিন** (simulated successful payment) and **বাতিল**.
 5. **আমার আবেদন**: all applications of this student and their status.
+6. The **🌐 English / বাংলা** button in the top right switches the whole UI language.
 
 ## Run the tests
 
