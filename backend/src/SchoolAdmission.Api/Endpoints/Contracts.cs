@@ -19,7 +19,8 @@ public sealed record HoldCreatedResponse(
     string StudentId,
     string Status,
     DateTime ExpiresAt,
-    string ClassName);
+    string ClassName,
+    DateTime CreatedAt);
 
 public sealed record HoldStatusResponse(
     string HoldId,
@@ -28,7 +29,8 @@ public sealed record HoldStatusResponse(
     DateTime ExpiresAt,
     string ClassName,
     string StudentId,
-    DateTime? ConfirmedAt);
+    DateTime? ConfirmedAt,
+    DateTime CreatedAt);
 
 public sealed record HoldConfirmedResponse(
     string HoldId,
