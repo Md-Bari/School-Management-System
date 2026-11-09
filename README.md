@@ -67,3 +67,20 @@ cd backend && dotnet test
 cd frontend && npm ci && npm test
 ```
 </details>
+
+## Configuration
+
+| Variable | Service | Default | Meaning |
+|---|---|---|---|
+| `HOLD_DURATION_SECONDS` | backend | `600` | How long a seat stays on hold before it is released |
+| `ConnectionStrings__Default` | backend | compose `db` service | PostgreSQL connection string |
+| `DATABASE_CONNECTION_STRING` | backend | – | Alternative name; wins over the one above if set |
+| `API_BASE_URL` | frontend | `http://localhost:8080` | Backend URL **as seen by the browser**; applied at container start, no rebuild |
+| `VITE_API_BASE_URL` | frontend (dev) | `http://localhost:8080` | Backend URL for `npm run dev` |
+
+Compose reads `HOLD_DURATION_SECONDS` and `API_BASE_URL` from your shell or an `.env` file.
+For example, to watch a hold expire quickly:
+
+```bash
+HOLD_DURATION_SECONDS=30 docker compose up
+```
