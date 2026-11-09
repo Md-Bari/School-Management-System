@@ -74,3 +74,11 @@ because it needs no retry loop and blocked requests simply wait their turn. That
 - `GET /holds/{holdId}` does not require `X-Student-Id`, because the brief lists no header for it.
   Hold ids are random 64-bit values, so they cannot be guessed.
 - Payment is simulated: pressing "ভর্তি ফি দিন" counts as a successful payment.
+
+## Errors
+
+- Every error is JSON: `{ "error": "<CODE>", "message": "<English text>", "details": … }`.
+  The UI turns the code into a Bangla sentence.
+- Bad input → `400`, unknown id or route → `404`, wrong owner → `403`, business-rule
+  conflicts → `409`. If the database is unreachable the API answers `503` (not `500`), so the
+  UI can say "try again shortly". `500` is reserved for real bugs.
