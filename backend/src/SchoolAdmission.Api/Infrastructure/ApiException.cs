@@ -35,6 +35,7 @@ public static class ErrorCodes
     public const string NoSeats = "NO_SEATS";
     public const string AlreadyApplied = "ALREADY_APPLIED";
     public const string AlreadyConfirmed = "ALREADY_CONFIRMED";
+    public const string AlreadyAdmitted = "ALREADY_ADMITTED";
     public const string HoldExpired = "HOLD_EXPIRED";
     public const string HoldCancelled = "HOLD_CANCELLED";
     public const string CannotCancelConfirmed = "CANNOT_CANCEL_CONFIRMED";
