@@ -57,3 +57,20 @@ Different classes do not block each other. Only requests for the *same* class ar
 which is the minimum needed for correctness. I chose a row lock over `SERIALIZABLE` isolation
 because it needs no retry loop and blocked requests simply wait their turn. That fits a
 "first come, first served" admission.
+
+## Confirm, cancel and rule 3
+
+- **Rule 3**: a student may have at most one `HELD` (not yet expired) **or** `CONFIRMED`
+  application per class. A second attempt is `409 ALREADY_APPLIED` / `409 ALREADY_CONFIRMED`.
+  After an application expires or is cancelled, the student may apply again. Applying to
+  *different* classes (e.g. two shifts) is allowed; the brief limits it per class only.
+- **Confirm** is idempotent: confirming an already-`CONFIRMED` hold returns `200` again and
+  `confirmedSeats` does not change (rule 5). Expired → `409 HOLD_EXPIRED`; cancelled →
+  `409 HOLD_CANCELLED`; someone else's hold → `403 NOT_YOUR_HOLD`.
+- **Cancel** (`DELETE`) works only on a live `HELD` hold → `204`. Cancelling an already
+  cancelled hold is also `204` (idempotent). A **confirmed admission cannot be cancelled** here
+  (`409`), because the fee has been paid and refunds are outside this system. An expired hold
+  gives `409 HOLD_EXPIRED`.
+- `GET /holds/{holdId}` does not require `X-Student-Id`, because the brief lists no header for it.
+  Hold ids are random 64-bit values, so they cannot be guessed.
+- Payment is simulated: pressing "ভর্তি ফি দিন" counts as a successful payment.
