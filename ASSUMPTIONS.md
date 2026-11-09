@@ -35,3 +35,25 @@ Where the brief was not explicit, this is what I assumed and why.
   truncated to the second, so a hold lasts between `HOLD_DURATION_SECONDS − 1` and
   `HOLD_DURATION_SECONDS` seconds.
 - An invalid or non-positive `HOLD_DURATION_SECONDS` falls back to 600 with a warning.
+
+## Concurrency
+
+Rule 1 (held + confirmed ≤ totalSeats) is enforced **in PostgreSQL, not in application memory**.
+That is why it also holds with several backend processes (the bonus):
+
+1. Every write that can change seat usage for a class (new hold, confirm, cancel, expiring)
+   starts with `SELECT … FROM classes WHERE id = $1 FOR UPDATE`. Only one transaction per class
+   can hold that row lock, so the "count, then insert" check cannot interleave, whichever process
+   the request lands on.
+2. The current time is read **after** the lock is acquired (`clock_timestamp()`, not `now()`,
+   which is frozen at transaction start). Otherwise a transaction that waited for the lock could
+   judge expiry with a stale time and confirm a hold that another transaction already counted
+   as expired.
+3. All writers lock in the same order (class row, then hold row), so they cannot deadlock.
+4. Rule 3 is backed by a partial unique index on `(class_id, student_id) WHERE status IN
+   ('HELD','CONFIRMED')` as a database-level safety net.
+
+Different classes do not block each other. Only requests for the *same* class are serialised,
+which is the minimum needed for correctness. I chose a row lock over `SERIALIZABLE` isolation
+because it needs no retry loop and blocked requests simply wait their turn. That fits a
+"first come, first served" admission.
