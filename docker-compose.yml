@@ -1,0 +1,84 @@
+name: school-admission
+
+# `docker compose up` starts PostgreSQL, the backend (http://localhost:8080) and the
+# frontend (http://localhost:3000). Data lives in the named volume `pgdata`, so it survives
+# `docker compose down` + `docker compose up` (only `down -v` deletes it).
+
+x-backend-env: &backend-env
+  ConnectionStrings__Default: Host=db;Port=5432;Database=school_admission;Username=postgres;Password=postgres
+  HOLD_DURATION_SECONDS: ${HOLD_DURATION_SECONDS:-600}
+
+services:
+  db:
+    image: postgres:16-alpine
+    command: ["postgres", "-c", "max_connections=300"]
+    environment:
+      POSTGRES_DB: school_admission
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Not published to the host on purpose (avoids clashing with a local PostgreSQL).
+    # Tests run inside the compose network; see README for running them from the host.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d school_admission"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment: *backend-env
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      # URL the *browser* uses to reach the backend.
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ---- Bonus: a second backend process on another port, same database --------
+  # docker compose --profile multi up
+  backend-2:
+    profiles: ["multi"]
+    build: ./backend
+    environment: *backend-env
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---- Tests (need only Docker) ------------------------------------------------
+  # docker compose --profile test run --rm backend-tests
+  backend-tests:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      target: test
+    environment:
+      TEST_DB_CONNECTION_STRING: Host=db;Port=5432;Database=postgres;Username=postgres;Password=postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # docker compose --profile test run --rm frontend-tests
+  frontend-tests:
+    profiles: ["test"]
+    build:
+      context: ./frontend
+      target: test
+
+volumes:
+  pgdata:
