@@ -62,8 +62,20 @@ because it needs no retry loop and blocked requests simply wait their turn. That
 
 - **Rule 3**: a student may have at most one `HELD` (not yet expired) **or** `CONFIRMED`
   application per class. A second attempt is `409 ALREADY_APPLIED` / `409 ALREADY_CONFIRMED`.
-  After an application expires or is cancelled, the student may apply again. Applying to
-  *different* classes (e.g. two shifts) is allowed; the brief limits it per class only.
+  After an application expires or is cancelled, the student may apply again.
+- **A student can be admitted to only one class.** A real student attends one class and one
+  shift, so the birth registration number may hold at most one `CONFIRMED` admission overall.
+  - Pending applications (`HELD`) to several classes at the same time are still allowed, so a
+    parent can try two shifts and pay for whichever they get. This also keeps `/me/holds`
+    useful as a list.
+  - When one application is confirmed, the student's other pending holds are cancelled
+    automatically, so those seats go back to other students right away.
+  - Once admitted, applying to or confirming any other class gives `409 ALREADY_ADMITTED`.
+  - Concurrency: every hold/confirm/cancel first takes a per-student PostgreSQL advisory lock
+    (`pg_advisory_xact_lock`), before the class lock. Lock order is always student → class →
+    hold, so two confirms in different classes at the same instant cannot both succeed, even on
+    different backend processes. A unique index on `student_id WHERE status = 'CONFIRMED'` is
+    the database-level safety net.
 - **Confirm** is idempotent: confirming an already-`CONFIRMED` hold returns `200` again and
   `confirmedSeats` does not change (rule 5). Expired → `409 HOLD_EXPIRED`; cancelled →
   `409 HOLD_CANCELLED`; someone else's hold → `403 NOT_YOUR_HOLD`.
