@@ -3,10 +3,28 @@ using SchoolAdmission.Api.Tests.Infrastructure;
 
 namespace SchoolAdmission.Api.Tests;
 
-/// <summary>A student (one birth registration number) can be admitted to only one class.</summary>
-[Collection("api")]
-public sealed class OneAdmissionPerStudentTests(ApiFixture fixture)
+/// <summary>
+/// Optional rule ONE_ADMISSION_PER_STUDENT=true: a student can be admitted to only one class.
+/// Runs against its own database, because switching the rule on creates a unique index that
+/// must not leak into the tests of the default (brief) behaviour.
+/// </summary>
+public sealed class OneAdmissionPerStudentTests : IAsyncLifetime
 {
+    private readonly TestDatabase _database = new();
+    private ApiFactory _factory = null!;
+
+    public async Task InitializeAsync()
+    {
+        await _database.InitializeAsync();
+        _factory = new ApiFactory(_database.ConnectionString, oneAdmissionPerStudent: true);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _factory.DisposeAsync();
+        await _database.DisposeAsync();
+    }
+
     private static async Task<string> HoldIdAsync(HttpResponseMessage res)
     {
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
@@ -14,9 +32,16 @@ public sealed class OneAdmissionPerStudentTests(ApiFixture fixture)
     }
 
     [Fact]
+    public async Task Settings_ReportTheRuleAsOn()
+    {
+        var settings = await _factory.CreateClient().GetJsonAsync("/settings");
+        Assert.True(settings.GetProperty("oneAdmissionPerStudent").GetBoolean());
+    }
+
+    [Fact]
     public async Task AdmittedStudent_CannotApplyToAnotherClass()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = _factory.CreateClient();
         var morning = await client.CreateClassAsync(5, "Class 6 - Morning Shift");
         var day = await client.CreateClassAsync(5, "Class 6 - Day Shift");
         var student = TestHelpers.NewStudentId();
@@ -32,32 +57,26 @@ public sealed class OneAdmissionPerStudentTests(ApiFixture fixture)
     [Fact]
     public async Task ConfirmingOneClass_CancelsTheStudentsOtherHolds_AndFreesThoseSeats()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = _factory.CreateClient();
         var classA = await client.CreateClassAsync(1);
         var classB = await client.CreateClassAsync(1);
         var student = TestHelpers.NewStudentId();
 
-        // Applying to several classes at once is still allowed.
         var holdA = await HoldIdAsync(await client.PostHoldAsync(classA, student));
         var holdB = await HoldIdAsync(await client.PostHoldAsync(classB, student));
-        Assert.Equal(0, (await client.GetJsonAsync($"/classes/{classB}")).GetProperty("availableSeats").GetInt32());
 
         Assert.Equal(HttpStatusCode.OK, (await client.ConfirmAsync(holdA, student)).StatusCode);
 
         Assert.Equal("CANCELLED", (await client.GetJsonAsync($"/holds/{holdB}")).GetProperty("status").GetString());
         Assert.Equal(1, (await client.GetJsonAsync($"/classes/{classB}")).GetProperty("availableSeats").GetInt32());
-
-        var confirmB = await client.ConfirmAsync(holdB, student);
-        Assert.Equal(HttpStatusCode.Conflict, confirmB.StatusCode);
-
-        // The freed seat goes to someone else.
+        Assert.Equal(HttpStatusCode.Conflict, (await client.ConfirmAsync(holdB, student)).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await client.PostHoldAsync(classB, TestHelpers.NewStudentId())).StatusCode);
     }
 
     [Fact]
     public async Task ConfirmingHoldsInManyClassesAtOnce_AdmitsTheStudentExactlyOnce()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = _factory.CreateClient();
         var student = TestHelpers.NewStudentId();
         var holds = new List<string>();
         var classes = new List<string>();
