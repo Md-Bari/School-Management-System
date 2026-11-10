@@ -14,6 +14,7 @@ describe('App', () => {
   beforeEach(() => {
     vi.spyOn(api, 'listClasses').mockResolvedValue([]);
     vi.spyOn(api, 'myHolds').mockResolvedValue([]);
+    vi.spyOn(api, 'settings').mockResolvedValue({ holdDurationSeconds: 600, oneAdmissionPerStudent: false });
   });
 
   it('remembers the student ID across a reload (rule 11)', async () => {

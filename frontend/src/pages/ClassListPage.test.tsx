@@ -15,6 +15,21 @@ async function flush() {
 describe('ClassListPage', () => {
   beforeEach(() => {
     vi.spyOn(api, 'myHolds').mockResolvedValue([]);
+    vi.spyOn(api, 'settings').mockResolvedValue({ holdDurationSeconds: 600, oneAdmissionPerStudent: false });
+  });
+
+  it('by default (as in the brief) an admitted student can still apply to other classes', async () => {
+    const other = { ...CLASS, id: 'c_2', name: 'Class 6 - Day Shift' };
+    vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS, other]);
+    vi.spyOn(api, 'myHolds').mockResolvedValue([
+      { holdId: 'h_5', classId: 'c_1', className: CLASS.name, status: 'CONFIRMED', expiresAt: '2020-01-01T00:00:00Z' },
+    ]);
+
+    render(<ClassListPage studentId={STUDENT} />);
+    await flush();
+
+    expect(screen.getByRole('button', { name: 'আবেদন করুন' })).toBeEnabled();
+    expect(screen.queryByText(/অন্য class-এ আর আবেদন করা যাবে না/)).not.toBeInTheDocument();
   });
 
   it('links to the existing application instead of offering to apply again', async () => {
@@ -30,7 +45,8 @@ describe('ClassListPage', () => {
     expect(screen.getByRole('link', { name: /ভর্তি নিশ্চিত/ })).toHaveAttribute('href', '#/holds/h_5');
   });
 
-  it('blocks applying to other classes once the student is admitted somewhere', async () => {
+  it('with ONE_ADMISSION_PER_STUDENT on, blocks applying to other classes once admitted somewhere', async () => {
+    vi.spyOn(api, 'settings').mockResolvedValue({ holdDurationSeconds: 600, oneAdmissionPerStudent: true });
     const other = { ...CLASS, id: 'c_2', name: 'Class 6 - Day Shift' };
     vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS, other]);
     vi.spyOn(api, 'myHolds').mockResolvedValue([
