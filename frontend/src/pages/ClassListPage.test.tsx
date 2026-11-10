@@ -18,6 +18,17 @@ describe('ClassListPage', () => {
     vi.spyOn(api, 'settings').mockResolvedValue({ holdDurationSeconds: 600, oneAdmissionPerStudent: false });
   });
 
+  it('shows the application time limit from the backend settings', async () => {
+    vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS]);
+    vi.spyOn(api, 'settings').mockResolvedValue({ holdDurationSeconds: 300, oneAdmissionPerStudent: false });
+
+    render(<ClassListPage studentId={STUDENT} />);
+    await flush();
+
+    expect(screen.getByTestId('hold-limit')).toHaveTextContent('৫ মিনিট');
+    expect(screen.queryByText(/শেষ হালনাগাদ/)).not.toBeInTheDocument();
+  });
+
   it('by default (as in the brief) an admitted student can still apply to other classes', async () => {
     const other = { ...CLASS, id: 'c_2', name: 'Class 6 - Day Shift' };
     vi.spyOn(api, 'listClasses').mockResolvedValue([CLASS, other]);
