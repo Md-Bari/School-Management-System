@@ -13,6 +13,9 @@ public sealed class ServerTimeHeaderMiddleware(RequestDelegate next)
         context.Response.OnStarting(() =>
         {
             context.Response.Headers[HeaderName] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            // Responses are JSON only; stop browsers from guessing another content type.
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            context.Response.Headers.CacheControl = "no-store";
             return Task.CompletedTask;
         });
         return next(context);
