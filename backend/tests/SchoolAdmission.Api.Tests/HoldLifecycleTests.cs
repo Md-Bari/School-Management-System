@@ -113,6 +113,46 @@ public sealed class HoldLifecycleTests(ApiFixture fixture)
     }
 
     [Fact]
+    public async Task ByDefault_StudentCanHoldAndConfirmInDifferentClasses_AsRule3IsPerClass()
+    {
+        var client = fixture.Factory.CreateClient();
+        var morning = await client.CreateClassAsync(5, "Class 6 - Morning Shift");
+        var day = await client.CreateClassAsync(5, "Class 6 - Day Shift");
+        var student = "20152691234567890"; // the brief's own example ID, reused like an API test would
+
+        foreach (var classId in new[] { morning, day })
+        {
+            var hold = await client.PostHoldAsync(classId, student);
+            Assert.Equal(HttpStatusCode.Created, hold.StatusCode);
+            var holdId = (await hold.JsonAsync()).GetProperty("holdId").GetString()!;
+            Assert.Equal(HttpStatusCode.OK, (await client.ConfirmAsync(holdId, student)).StatusCode);
+        }
+
+        Assert.Equal(1, (await client.GetJsonAsync($"/classes/{morning}")).GetProperty("confirmedSeats").GetInt32());
+        Assert.Equal(1, (await client.GetJsonAsync($"/classes/{day}")).GetProperty("confirmedSeats").GetInt32());
+
+        var settings = await client.GetJsonAsync("/settings");
+        Assert.False(settings.GetProperty("oneAdmissionPerStudent").GetBoolean());
+        Assert.Equal(600, settings.GetProperty("holdDurationSeconds").GetInt32());
+    }
+
+    [Fact]
+    public async Task FullClass_StudentWhoAlreadyHoldsItsSeat_IsToldAlreadyApplied_NotNoSeats()
+    {
+        var client = fixture.Factory.CreateClient();
+        var classId = await client.CreateClassAsync(1);
+        var student = TestHelpers.NewStudentId();
+        Assert.Equal(HttpStatusCode.Created, (await client.PostHoldAsync(classId, student)).StatusCode);
+
+        var again = await client.PostHoldAsync(classId, student);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal("ALREADY_APPLIED", await again.ErrorCodeAsync());
+
+        var other = await client.PostHoldAsync(classId, TestHelpers.NewStudentId());
+        Assert.Equal("NO_SEATS", await other.ErrorCodeAsync());
+    }
+
+    [Fact]
     public async Task CancellingTwice_IsIdempotent()
     {
         var client = fixture.Factory.CreateClient();
