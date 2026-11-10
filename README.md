@@ -42,7 +42,7 @@ Later starts are fast. Stop with `Ctrl+C` or `docker compose down`. Data is kept
 Both test suites run inside Docker, so no SDK is needed:
 
 ```bash
-# Backend: 39 xUnit integration tests against a real PostgreSQL
+# Backend: 48 xUnit integration tests against a real PostgreSQL
 # (each run creates a throw-away database and drops it afterwards)
 docker compose --profile test run --rm backend-tests
 
@@ -53,7 +53,7 @@ docker compose --profile test run --rm frontend-tests
 Backend tests include the required **concurrency test**: 150 simultaneous hold requests on
 a 20-seat class must give exactly 20 holds. They also cover two API instances sharing one
 database (bonus), one student firing 30 parallel requests, 20 parallel confirms of the same
-hold, a student confirming 5 classes at once (admitted exactly once), expiry with 2-second
+hold, the optional one-admission rule (5 classes confirmed at once → admitted once), expiry with 2-second
 holds, ownership checks and 4xx on bad input.
 
 <details>
@@ -80,8 +80,10 @@ cd frontend && npm ci && npm test
 | `DATABASE_CONNECTION_STRING` | backend | – | Alternative name; wins over the one above if set |
 | `API_BASE_URL` | frontend | `http://localhost:8080` | Backend URL **as seen by the browser**; applied at container start, no rebuild |
 | `VITE_API_BASE_URL` | frontend (dev) | `http://localhost:8080` | Backend URL for `npm run dev` |
+| `ONE_ADMISSION_PER_STUDENT` | backend | `false` | Optional: `true` = a student can be admitted to only one class in total (stricter than the brief) |
+| `POSTGRES_PASSWORD` | db + backend | `postgres` | Database password; set it before the first start |
 
-Compose reads `HOLD_DURATION_SECONDS` and `API_BASE_URL` from your shell or an `.env` file.
+Compose reads these variables from your shell or an `.env` file.
 For example, to watch a hold expire quickly:
 
 ```bash
@@ -110,11 +112,15 @@ header (17-digit birth registration number).
 | 1 | `POST /classes` | 201 | 400 `VALIDATION_ERROR`, `INVALID_JSON` |
 | 2 | `GET /classes` | 200 | |
 | 3 | `GET /classes/{classId}` | 200 | 404 `CLASS_NOT_FOUND` |
-| 4 | `POST /classes/{classId}/holds` | 201 | 409 `NO_SEATS`, `ALREADY_APPLIED`, `ALREADY_CONFIRMED`, `ALREADY_ADMITTED`; 400 `MISSING_STUDENT_ID`, `INVALID_STUDENT_ID` |
+| 4 | `POST /classes/{classId}/holds` | 201 | 409 `NO_SEATS`, `ALREADY_APPLIED`, `ALREADY_CONFIRMED`; 400 `MISSING_STUDENT_ID`, `INVALID_STUDENT_ID` |
 | 5 | `GET /holds/{holdId}` | 200 | 404 `HOLD_NOT_FOUND` |
-| 6 | `POST /holds/{holdId}/confirm` | 200 (idempotent) | 409 `HOLD_EXPIRED`, `HOLD_CANCELLED`, `ALREADY_ADMITTED`; 403 `NOT_YOUR_HOLD` |
+| 6 | `POST /holds/{holdId}/confirm` | 200 (idempotent) | 409 `HOLD_EXPIRED`, `HOLD_CANCELLED`; 403 `NOT_YOUR_HOLD` |
 | 7 | `DELETE /holds/{holdId}` | 204 | 409 `HOLD_EXPIRED`, `CANNOT_CANCEL_CONFIRMED`; 403 `NOT_YOUR_HOLD` |
 | 8 | `GET /me/holds` | 200 | 400 without `X-Student-Id` |
+| – | `GET /settings` (extra) | 200 | `{ holdDurationSeconds, oneAdmissionPerStudent }` for the UI |
+
+With `ONE_ADMISSION_PER_STUDENT=true`, holds and confirms can also return 409 `ALREADY_ADMITTED`.
+Any bad input is a 4xx (400, or 413 for a body over 64 KB), never a 500.
 
 Every error body has the same shape: `{ "error": "NO_SEATS", "message": "...", "details": null }`.
 Responses follow the field names in the brief exactly. A few extra fields are appended (e.g.
