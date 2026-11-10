@@ -8,6 +8,7 @@ import type {
   HoldCreated,
   HoldDetail,
   MyHold,
+  ServerSettings,
 } from './types';
 
 interface RequestOptions {
@@ -72,4 +73,5 @@ export const api = {
   cancelHold: (holdId: string, studentId: string) =>
     request<void>(`/holds/${enc(holdId)}`, { method: 'DELETE', studentId }),
   myHolds: (studentId: string) => request<MyHold[]>('/me/holds', { studentId }),
+  settings: () => request<ServerSettings>('/settings'),
 };

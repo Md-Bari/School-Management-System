@@ -50,3 +50,9 @@ export interface MyHold {
   createdAt?: string;
   confirmedAt?: string | null;
 }
+
+/** GET /settings: how the backend is configured. */
+export interface ServerSettings {
+  holdDurationSeconds: number;
+  oneAdmissionPerStudent: boolean;
+}
