@@ -63,7 +63,8 @@ export const bn = {
   // class list
   'classes.title': 'Class তালিকা',
   'classes.intro':
-    'ভর্তি হয় “আগে আবেদন করলে আগে পাবে” ভিত্তিতে। আবেদন করলে seat কিছু সময়ের জন্য আপনার নামে hold থাকবে; এর মধ্যে ভর্তি ফি দিলে ভর্তি নিশ্চিত হবে। একজন শিক্ষার্থী শুধু একটি class-এ ভর্তি হতে পারবে।',
+    'ভর্তি হয় “আগে আবেদন করলে আগে পাবে” ভিত্তিতে। আবেদন করলে seat কিছু সময়ের জন্য আপনার নামে hold থাকবে; এর মধ্যে ভর্তি ফি দিলে ভর্তি নিশ্চিত হবে।',
+  'classes.oneAdmissionNote': 'একজন শিক্ষার্থী শুধু একটি class-এ ভর্তি হতে পারবে।',
   'classes.admitted': 'এই শিক্ষার্থী “{name}”-এ ভর্তি নিশ্চিত হয়েছে, তাই অন্য class-এ আর আবেদন করা যাবে না।',
   'classes.needId': 'আবেদন করতে আগে উপরের ঘরে শিক্ষার্থীর ১৭ অঙ্কের জন্ম নিবন্ধন নম্বর লিখুন।',
   'classes.empty': 'এখনও কোনো class তৈরি হয়নি।',
@@ -195,7 +196,8 @@ export const en: Record<MessageKey, string> = {
 
   'classes.title': 'Class list',
   'classes.intro':
-    'Admission is first come, first served. Applying holds a seat for the student for a limited time; paying the admission fee within that time confirms the admission. A student can be admitted to only one class.',
+    'Admission is first come, first served. Applying holds a seat for the student for a limited time; paying the admission fee within that time confirms the admission.',
+  'classes.oneAdmissionNote': 'A student can be admitted to only one class.',
   'classes.admitted': 'This student is admitted to “{name}”, so they cannot apply to another class.',
   'classes.needId': "To apply, first enter the student's 17-digit birth registration number above.",
   'classes.empty': 'No classes have been created yet.',
