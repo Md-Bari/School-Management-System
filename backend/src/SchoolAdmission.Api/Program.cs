@@ -50,6 +50,12 @@ app.UseMiddleware<ServerTimeHeaderMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+// Read-only settings the UI adapts to (extra endpoint; the assignment's contract is unchanged).
+app.MapGet("/settings", (AdmissionOptions o) => Results.Ok(new
+{
+    holdDurationSeconds = o.HoldDurationSeconds,
+    oneAdmissionPerStudent = o.OneAdmissionPerStudent,
+}));
 app.MapClassEndpoints();
 app.MapHoldEndpoints();
 
