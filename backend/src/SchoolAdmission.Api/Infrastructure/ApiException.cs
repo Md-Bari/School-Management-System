@@ -28,6 +28,7 @@ public static class ErrorCodes
 {
     public const string ValidationError = "VALIDATION_ERROR";
     public const string InvalidJson = "INVALID_JSON";
+    public const string PayloadTooLarge = "PAYLOAD_TOO_LARGE";
     public const string MissingStudentId = "MISSING_STUDENT_ID";
     public const string InvalidStudentId = "INVALID_STUDENT_ID";
     public const string ClassNotFound = "CLASS_NOT_FOUND";

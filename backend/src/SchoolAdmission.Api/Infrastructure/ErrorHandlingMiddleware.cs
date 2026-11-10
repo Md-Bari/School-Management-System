@@ -29,12 +29,23 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
         }
         catch (BadHttpRequestException ex)
         {
-            await WriteError(context, StatusCodes.Status400BadRequest, ErrorCodes.InvalidJson, ex.Message);
+            // Kestrel's own status (e.g. 413 for a body over the size limit); always 4xx.
+            var status = ex.StatusCode is >= 400 and < 500 ? ex.StatusCode : StatusCodes.Status400BadRequest;
+            var code = status == StatusCodes.Status413PayloadTooLarge ? ErrorCodes.PayloadTooLarge : ErrorCodes.InvalidJson;
+            await WriteError(context, status, code, ex.Message);
         }
         catch (JsonException ex)
         {
             await WriteError(context, StatusCodes.Status400BadRequest, ErrorCodes.InvalidJson,
                 $"Request body is not valid JSON: {ex.Message}");
+        }
+        catch (PostgresException ex) when (ex.SqlState.StartsWith("22", StringComparison.Ordinal))
+        {
+            // SQLSTATE class 22 = "data exception" (bad characters, out-of-range values...):
+            // always caused by the input, so it is a 400, never a 500.
+            logger.LogWarning("Rejected input the database could not accept: {SqlState}", ex.SqlState);
+            await WriteError(context, StatusCodes.Status400BadRequest, ErrorCodes.ValidationError,
+                "The request contains a value that is not allowed.");
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
