@@ -10,7 +10,7 @@ decisions, and the order of work. The decisions and the reasons behind them are 
 |---|---|---|
 | 1 | held + confirmed never exceeds totalSeats, under any concurrency | `AdmissionService.CreateHoldAsync`: class row lock (`SELECT … FOR UPDATE`) |
 | 2 | Hold duration from `HOLD_DURATION_SECONDS` (default 600); seat returns by itself | `AdmissionOptions`; lazy expiry in every count query |
-| 3 | One active/confirmed application per student per class (and, by our assumption, only one admission per student overall) | class lock + per-student advisory lock + partial unique indexes |
+| 3 | One active/confirmed application per student per class (optional stricter switch: one admission per student overall, `ONE_ADMISSION_PER_STUDENT`, off by default) | class lock + per-student advisory lock + partial unique index |
 | 4 | Only own, unexpired HELD holds can be confirmed | `ConfirmHoldAsync` (403 / 409) |
 | 5 | Repeated confirm counts once | confirm is idempotent under the row lock |
 | 6 | No data loss on restart / `down` + `up` | PostgreSQL in named volume `pgdata` |
