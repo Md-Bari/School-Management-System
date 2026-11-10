@@ -5,8 +5,10 @@ name: school-admission
 # `docker compose down` + `docker compose up` (only `down -v` deletes it).
 
 x-backend-env: &backend-env
-  ConnectionStrings__Default: Host=db;Port=5432;Database=school_admission;Username=postgres;Password=postgres
+  ConnectionStrings__Default: Host=db;Port=5432;Database=school_admission;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
   HOLD_DURATION_SECONDS: ${HOLD_DURATION_SECONDS:-600}
+  # Optional stricter rule (one admission per student across all classes). Off = exactly the brief.
+  ONE_ADMISSION_PER_STUDENT: ${ONE_ADMISSION_PER_STUDENT:-false}
 
 services:
   db:
@@ -15,7 +17,8 @@ services:
     environment:
       POSTGRES_DB: school_admission
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      # Override with POSTGRES_PASSWORD (set it before the first start; the volume keeps the old one).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - pgdata:/var/lib/postgresql/data
     # Not published to the host on purpose (avoids clashing with a local PostgreSQL).
@@ -73,7 +76,7 @@ services:
       context: ./backend
       target: test
     environment:
-      TEST_DB_CONNECTION_STRING: Host=db;Port=5432;Database=postgres;Username=postgres;Password=postgres
+      TEST_DB_CONNECTION_STRING: Host=db;Port=5432;Database=postgres;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
     depends_on:
       db:
         condition: service_healthy
