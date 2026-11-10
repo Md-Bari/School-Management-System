@@ -40,10 +40,19 @@ the brief's rules one by one before they were accepted.
 5. **Port clash.** The first compose file published PostgreSQL on host port 5433, which was
    already in use on the development machine and would also be a risk on the evaluators'
    machines. The port is no longer published; tests run inside the compose network.
+6. **500 on unusual text.** The class-name validation only checked length, so a name containing
+   a NUL character, a lone UTF-16 surrogate or invalid UTF-8 reached PostgreSQL (or the JSON
+   reader) and returned **500**, breaking rule 7. Caught by sending hostile inputs with `curl`
+   to the running container. Fixed by rejecting such text with 400, plus a safety net that maps
+   every PostgreSQL "data exception" to 400; covered by new tests.
+7. **A stricter rule that could fail the API tests.** On request, the AI added "a student can
+   be admitted to only one class", but it was applied unconditionally. Checking it against
+   rule 3 (which is *per class*) showed that API tests reusing one student ID across classes
+   would get 409. It is now an opt-in switch (`ONE_ADMISSION_PER_STUDENT`), off by default.
 
 ## How the output was verified
 
-- All backend tests run against a real PostgreSQL in Docker (39 tests, including 150
+- All backend tests run against a real PostgreSQL in Docker (48 tests, including 150
   simultaneous requests on 20 seats and two API instances in parallel).
 - All frontend tests run in a Node container.
 - The whole stack was started with `docker compose up`, every endpoint was called with `curl`,
