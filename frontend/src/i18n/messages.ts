@@ -44,8 +44,11 @@ export const bn = {
   'timer.urgent': 'শেষ মিনিট! এখনই ফি দিন।',
 
   // live refresh badge
-  'refresh.live': 'সরাসরি — প্রতি {seconds} সেকেন্ডে স্বয়ংক্রিয় হালনাগাদ',
-  'refresh.last': 'শেষ হালনাগাদ',
+  // application time limit (HOLD_DURATION_SECONDS)
+  'limit.label': 'আবেদনের পর ভর্তি ফি দেওয়ার সময়:',
+  'limit.hint': 'এর মধ্যে ফি না দিলে seat অন্যদের জন্য খুলে যাবে।',
+  'unit.minutes': '{n} মিনিট',
+  'unit.seconds': '{n} সেকেন্ড',
   'refresh.stale': 'হালনাগাদ করা যাচ্ছে না — শেষ পাওয়া তথ্য দেখানো হচ্ছে।',
 
   // hold actions
@@ -179,8 +182,10 @@ export const en: Record<MessageKey, string> = {
   'timer.hint': 'If the fee is not paid in time, the seat is released to others.',
   'timer.urgent': 'Last minute! Pay now.',
 
-  'refresh.live': 'Live — updates automatically every {seconds} seconds',
-  'refresh.last': 'Last update',
+  'limit.label': 'Time to pay the admission fee after applying:',
+  'limit.hint': 'If the fee is not paid in time, the seat is released to others.',
+  'unit.minutes': '{n} min',
+  'unit.seconds': '{n} sec',
   'refresh.stale': 'Cannot refresh — showing the last data received.',
 
   'hold.pay': 'Pay admission fee',

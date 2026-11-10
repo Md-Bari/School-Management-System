@@ -1,5 +1,5 @@
 import type { HoldStatus } from '../api/types';
-import { t } from '../i18n';
+import { digits, t } from '../i18n';
 
 /**
  * The server stores HELD until it notices expiry; the UI must not wait for that.
@@ -41,4 +41,15 @@ export function formatDateTime(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+/** 600 → "১০ মিনিট", 90 → "১ মিনিট ৩০ সেকেন্ড", 45 → "৪৫ সেকেন্ড" (in the current language). */
+export function formatHoldLimit(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  const parts: string[] = [];
+  if (m > 0) parts.push(t('unit.minutes', { n: digits(m) }));
+  if (s > 0 || m === 0) parts.push(t('unit.seconds', { n: digits(s) }));
+  return parts.join(' ');
 }
