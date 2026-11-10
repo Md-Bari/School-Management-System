@@ -84,6 +84,50 @@ public sealed class ValidationTests(ApiFixture fixture)
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/no/such/route")).StatusCode);
     }
 
+    [Theory]
+    [InlineData("""{"name":"Class\u00006","totalSeats":10}""")]   // NUL: PostgreSQL cannot store it
+    [InlineData("""{"name":"Class\ud8006","totalSeats":10}""")]   // lone UTF-16 surrogate
+    [InlineData("""{"name":"Class\t6","totalSeats":10}""")]       // control character
+    public async Task CreateClass_NameWithInvalidCharacters_Returns400_Not500(string body)
+    {
+        var client = fixture.Factory.CreateClient();
+        var res = await client.PostAsync("/classes", new StringContent(body, Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateClass_InvalidUtf8Bytes_Returns400_Not500()
+    {
+        var client = fixture.Factory.CreateClient();
+        var bytes = Encoding.ASCII.GetBytes("{\"name\":\"Class X\",\"totalSeats\":10}");
+        bytes[10] = 0xFF; // corrupt a byte inside the name
+        var content = new ByteArrayContent(bytes);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+        var res = await client.PostAsync("/classes", content);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateClass_OversizedBody_Returns4xx()
+    {
+        // Real Kestrel answers 413 (body limit); the in-memory test server has no body limit and
+        // answers 400 (name too long). Either way: a client error, never 500.
+        var client = fixture.Factory.CreateClient();
+        var body = "{\"name\":\"" + new string('a', 200_000) + "\",\"totalSeats\":10}";
+        var res = await client.PostAsync("/classes", new StringContent(body, Encoding.UTF8, "application/json"));
+        Assert.Contains(res.StatusCode, new[] { HttpStatusCode.RequestEntityTooLarge, HttpStatusCode.BadRequest });
+    }
+
+    [Fact]
+    public async Task Responses_CarrySecurityHeaders_AndNoServerHeader()
+    {
+        var client = fixture.Factory.CreateClient();
+        var res = await client.GetAsync("/classes");
+        Assert.Equal("nosniff", string.Join("", res.Headers.GetValues("X-Content-Type-Options")));
+        Assert.False(res.Headers.Contains("Server"));
+    }
+
     [Fact]
     public async Task MyHolds_WithoutStudentId_Returns400()
     {
