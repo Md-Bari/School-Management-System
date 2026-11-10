@@ -27,7 +27,7 @@ export function MyHoldsPage({ studentId }: { studentId: string }) {
 
 function MyHoldsList({ studentId }: { studentId: string }) {
   const fetchMine = useCallback(() => api.myHolds(studentId), [studentId]);
-  const { data: holds, error, loading, lastUpdated, refresh } = usePolling(fetchMine, MY_HOLDS_POLL_MS, `me:${studentId}`);
+  const { data: holds, error, loading, refresh } = usePolling(fetchMine, MY_HOLDS_POLL_MS, `me:${studentId}`);
   const onChanged = useCallback(() => void refresh(), [refresh]);
 
   return (
@@ -35,7 +35,7 @@ function MyHoldsList({ studentId }: { studentId: string }) {
       <h2>{t('my.title')}</h2>
       <p className="muted">{t('my.forId', { id: studentId })}</p>
 
-      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData={Boolean(holds)} intervalMs={MY_HOLDS_POLL_MS} />
+      <RefreshStatus error={error} hasData={Boolean(holds)} />
 
       {loading && !holds && <p>{t('common.loading')}</p>}
 

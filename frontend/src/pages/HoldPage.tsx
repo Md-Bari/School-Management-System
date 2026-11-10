@@ -13,7 +13,7 @@ export const HOLD_POLL_MS = 5000;
 /** Screen "আবেদন": one application's status, remaining time, pay and cancel buttons. */
 export function HoldPage({ holdId, studentId }: { holdId: string; studentId: string }) {
   const fetchHold = useCallback(() => api.getHold(holdId), [holdId]);
-  const { data: hold, error, loading, lastUpdated, refresh } = usePolling(fetchHold, HOLD_POLL_MS, `hold:${holdId}`);
+  const { data: hold, error, loading, refresh } = usePolling(fetchHold, HOLD_POLL_MS, `hold:${holdId}`);
   const onChanged = useCallback(() => void refresh(), [refresh]);
 
   if (loading && !hold) return <p>{t('common.loading')}</p>;
@@ -72,7 +72,7 @@ export function HoldPage({ holdId, studentId }: { holdId: string; studentId: str
         <p className="muted small">{t('holdPage.demoNote')}</p>
       </div>
 
-      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData intervalMs={HOLD_POLL_MS} />
+      <RefreshStatus error={error} hasData />
       <p>
         <a href="#/my">{t('holdPage.allMine')}</a>
       </p>
