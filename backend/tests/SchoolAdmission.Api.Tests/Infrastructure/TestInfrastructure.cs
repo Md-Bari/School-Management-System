@@ -46,7 +46,8 @@ public sealed class TestDatabase : IAsyncLifetime
 }
 
 /// <summary>An in-process instance of the API pointed at the test database.</summary>
-public sealed class ApiFactory(string connectionString, int holdDurationSeconds = 600) : WebApplicationFactory<Program>
+public sealed class ApiFactory(string connectionString, int holdDurationSeconds = 600, bool oneAdmissionPerStudent = false)
+    : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -56,6 +57,7 @@ public sealed class ApiFactory(string connectionString, int holdDurationSeconds 
             ["DATABASE_CONNECTION_STRING"] = connectionString,
             ["ConnectionStrings:Default"] = connectionString,
             ["HOLD_DURATION_SECONDS"] = holdDurationSeconds.ToString(),
+            ["ONE_ADMISSION_PER_STUDENT"] = oneAdmissionPerStudent ? "true" : "false",
         }));
     }
 }
