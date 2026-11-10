@@ -9,6 +9,12 @@ DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(k =>
+{
+    k.AddServerHeader = false;                       // don't advertise the server software
+    k.Limits.MaxRequestBodySize = 64 * 1024;         // the largest valid body is a few hundred bytes
+});
+
 // All settings are resolved lazily from IConfiguration so that environment variables
 // (and test overrides) are always honoured.
 builder.Services.AddSingleton(sp => AdmissionOptions.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
@@ -26,6 +32,9 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new UtcDateTimeJsonConverter());
 });
 
+// Any origin is allowed because the frontend's URL is configurable and the API uses no cookies
+// or credentials (identity is the X-Student-Id header), so there is nothing a foreign site could
+// ride on.
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .AllowAnyOrigin()
     .AllowAnyMethod()
