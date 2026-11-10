@@ -63,8 +63,12 @@ because it needs no retry loop and blocked requests simply wait their turn. That
 - **Rule 3**: a student may have at most one `HELD` (not yet expired) **or** `CONFIRMED`
   application per class. A second attempt is `409 ALREADY_APPLIED` / `409 ALREADY_CONFIRMED`.
   After an application expires or is cancelled, the student may apply again.
-- **A student can be admitted to only one class.** A real student attends one class and one
-  shift, so the birth registration number may hold at most one `CONFIRMED` admission overall.
+- By default a student may apply to and be admitted to **several different classes**, because
+  rule 3 limits it per class and the API tests may reuse one student ID across classes.
+- **Optional stricter rule: `ONE_ADMISSION_PER_STUDENT=true`.** In real life a student attends
+  one class and one shift, so with this switch the birth registration number may hold at most one
+  `CONFIRMED` admission overall. It is off by default so the API behaves exactly as the brief;
+  all backend processes must use the same value. `GET /settings` tells the UI whether it is on.
   - Pending applications (`HELD`) to several classes at the same time are still allowed, so a
     parent can try two shifts and pay for whichever they get. This also keeps `/me/holds`
     useful as a list.
@@ -75,7 +79,7 @@ because it needs no retry loop and blocked requests simply wait their turn. That
     (`pg_advisory_xact_lock`), before the class lock. Lock order is always student → class →
     hold, so two confirms in different classes at the same instant cannot both succeed, even on
     different backend processes. A unique index on `student_id WHERE status = 'CONFIRMED'` is
-    the database-level safety net.
+    the database-level safety net; it exists only while the switch is on.
 - **Confirm** is idempotent: confirming an already-`CONFIRMED` hold returns `200` again and
   `confirmedSeats` does not change (rule 5). Expired → `409 HOLD_EXPIRED`; cancelled →
   `409 HOLD_CANCELLED`; someone else's hold → `403 NOT_YOUR_HOLD`.
@@ -94,6 +98,32 @@ because it needs no retry loop and blocked requests simply wait their turn. That
 - Bad input → `400`, unknown id or route → `404`, wrong owner → `403`, business-rule
   conflicts → `409`. If the database is unreachable the API answers `503` (not `500`), so the
   UI can say "try again shortly". `500` is reserved for real bugs.
+- Text the database cannot store (NUL, other control characters, broken UTF-8/UTF-16) is
+  rejected with `400`; any PostgreSQL "data exception" (SQLSTATE class 22) is also mapped to
+  `400` as a safety net. Request bodies over 64 KB get `413`.
+
+## Security
+
+- No login exists (by the brief), so there are no passwords or sessions to steal; the API sends
+  no cookies, which is why CORS can allow any origin without risk.
+- All SQL is parameterised (Dapper); ids from the URL are never concatenated into SQL.
+- A hold can only be confirmed or cancelled with the owner's `X-Student-Id` (`403` otherwise).
+- API responses: no `Server` header, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`.
+- Frontend (nginx): Content-Security-Policy (scripts only from the site itself),
+  `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, nginx version hidden.
+- The backend container runs as a non-root user; PostgreSQL is not published to the host.
+- `dotnet list package --vulnerable` and `npm audit`: no known vulnerabilities.
+- Not done (outside the brief): authentication for the admin screen, rate limiting. A rate limit
+  could also block the evaluators' own burst tests.
+
+## Performance
+
+- A request for a class that is already full is rejected before taking the class lock, so
+  late applicants get their `409` without waiting in the queue. It can only reject, never grant,
+  so rule 1 still depends only on the locked check.
+- Load test (k6, Docker Desktop on a laptop): 1000 simultaneous applications for one 100-seat
+  class → exactly 100 holds, 900 × `409`, 0 errors, slowest response 4.5 s; 1000 simultaneous
+  `GET /classes` → all `200` within 0.5 s.
 
 ## Frontend
 
