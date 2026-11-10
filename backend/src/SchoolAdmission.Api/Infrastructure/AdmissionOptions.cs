@@ -8,6 +8,13 @@ public sealed class AdmissionOptions
     public required int HoldDurationSeconds { get; init; }
     public TimeSpan SweepInterval { get; init; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// Optional stricter rule (ONE_ADMISSION_PER_STUDENT=true): a student can be admitted to only
+    /// one class in total. Off by default so the API behaves exactly as the assignment's rule 3
+    /// (one active/confirmed application per student per class).
+    /// </summary>
+    public bool OneAdmissionPerStudent { get; init; }
+
     public static AdmissionOptions FromConfiguration(IConfiguration config)
     {
         // Connection string: ConnectionStrings__Default (standard ASP.NET env var form)
@@ -33,10 +40,13 @@ public sealed class AdmissionOptions
             }
         }
 
+        var oneAdmission = config["ONE_ADMISSION_PER_STUDENT"]?.Trim().ToLowerInvariant() is "true" or "1" or "yes" or "on";
+
         return new AdmissionOptions
         {
             ConnectionString = connectionString,
             HoldDurationSeconds = holdSeconds,
+            OneAdmissionPerStudent = oneAdmission,
         };
     }
 }
