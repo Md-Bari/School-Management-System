@@ -1,4 +1,5 @@
 using Npgsql;
+using SchoolAdmission.Api.Infrastructure;
 
 namespace SchoolAdmission.Api.Data;
 
@@ -6,7 +7,10 @@ namespace SchoolAdmission.Api.Data;
 /// Creates the schema on startup (idempotent). Waits for PostgreSQL to accept connections, and
 /// uses an advisory lock so two backend processes starting together do not race on DDL.
 /// </summary>
-public sealed class DatabaseInitializer(NpgsqlDataSource dataSource, ILogger<DatabaseInitializer> logger)
+public sealed class DatabaseInitializer(
+    NpgsqlDataSource dataSource,
+    AdmissionOptions options,
+    ILogger<DatabaseInitializer> logger)
 {
     private const long SchemaLockKey = 727_001;
 
@@ -47,6 +51,15 @@ public sealed class DatabaseInitializer(NpgsqlDataSource dataSource, ILogger<Dat
     /// </summary>
     private async Task CreateOneAdmissionPerStudentIndexAsync(NpgsqlConnection conn, CancellationToken ct)
     {
+        if (!options.OneAdmissionPerStudent)
+        {
+            // Rule switched off: make sure an index from an earlier run with it on is gone,
+            // otherwise it would still block admissions to a second class.
+            await using var drop = new NpgsqlCommand("DROP INDEX IF EXISTS ux_holds_one_admission_per_student", conn);
+            await drop.ExecuteNonQueryAsync(ct);
+            return;
+        }
+
         try
         {
             await using var cmd = new NpgsqlCommand(
