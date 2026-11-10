@@ -3,6 +3,7 @@ import { serverNow } from '../api/clock';
 import { api } from '../api/client';
 import { errorCode, userMessage } from '../api/errors';
 import type { MyHold } from '../api/types';
+import { HoldLimitBadge } from '../components/HoldLimitBadge';
 import { Notice } from '../components/Notice';
 import { RefreshStatus } from '../components/RefreshStatus';
 import { navigate, routeHref } from '../hooks/useHashRoute';
@@ -28,7 +29,7 @@ type ApplyMessage = { needId: true } | { error: unknown; showMyLink: boolean };
 
 /** Screen "Class তালিকা": seat counts refresh every few seconds without reloading. */
 export function ClassListPage({ studentId }: { studentId: string }) {
-  const { data: classes, error, loading, lastUpdated, refresh } = usePolling(api.listClasses, CLASS_POLL_MS, 'classes');
+  const { data: classes, error, loading, refresh } = usePolling(api.listClasses, CLASS_POLL_MS, 'classes');
   const fetchMine = useCallback(
     () => (studentId ? api.myHolds(studentId) : Promise.resolve<MyHold[]>([])),
     [studentId],
@@ -37,7 +38,7 @@ export function ClassListPage({ studentId }: { studentId: string }) {
   // Recomputed on every render (at least every poll), so an expiring hold drops out on time.
   const active = activeHoldsByClass(myHolds, serverNow());
   // Only when the backend runs with ONE_ADMISSION_PER_STUDENT: one admission across all classes.
-  const { oneAdmissionPerStudent } = useServerSettings();
+  const { oneAdmissionPerStudent, holdDurationSeconds } = useServerSettings();
   const admittedHold = oneAdmissionPerStudent ? myHolds?.find((h) => h.status === 'CONFIRMED') : undefined;
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
   const [message, setMessage] = useState<ApplyMessage | null>(null);
@@ -83,7 +84,8 @@ export function ClassListPage({ studentId }: { studentId: string }) {
         </Notice>
       )}
 
-      <RefreshStatus lastUpdated={lastUpdated} error={error} hasData={Boolean(classes)} intervalMs={CLASS_POLL_MS} />
+      <HoldLimitBadge seconds={holdDurationSeconds} />
+      <RefreshStatus error={error} hasData={Boolean(classes)} />
 
       {loading && !classes && <p>{t('common.loading')}</p>}
 

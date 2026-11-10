@@ -467,7 +467,27 @@ input[aria-invalid='true'] {
   }
 }
 
-/* ---- live refresh badge ----------------------------------------------------------- */
+/* ---- application time limit ------------------------------------------------------ */
+
+.limit-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #b2ccff;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.limit-badge strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- refresh failure warning ----------------------------------------------------------- */
 
 .live {
   display: inline-flex;
@@ -488,11 +508,6 @@ input[aria-invalid='true'] {
   border-radius: 50%;
   background: currentColor;
   animation: live-blink 1.6s ease-in-out infinite;
-}
-
-.live-time {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .live-stale {
