@@ -63,6 +63,23 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
     public async Task<HoldRow> CreateHoldAsync(string classId, string studentId, CancellationToken ct)
     {
         await using var conn = await dataSource.OpenConnectionAsync(ct);
+
+        // Fast path, no locks: when the class is visibly full and this student has nothing in it,
+        // answer 409 at once instead of queueing behind the class lock just to learn the same.
+        // Safe for rule 1: it can only reject, never grant; every grant is decided under the lock.
+        var quick = await conn.QuerySingleOrDefaultAsync<QuickSeatCheck>(new CommandDefinition("""
+            SELECT c.total_seats,
+                   (SELECT COUNT(*) FROM holds h WHERE h.class_id = c.id
+                        AND (h.status = 'CONFIRMED' OR (h.status = 'HELD' AND h.expires_at > clock_timestamp()))) AS used,
+                   EXISTS (SELECT 1 FROM holds h WHERE h.class_id = c.id AND h.student_id = @studentId
+                        AND (h.status = 'CONFIRMED' OR (h.status = 'HELD' AND h.expires_at > clock_timestamp()))) AS has_own
+            FROM classes c WHERE c.id = @classId
+            """, new { classId, studentId }, cancellationToken: ct)) ?? throw ClassNotFound();
+        if (!quick.HasOwn && quick.Used >= quick.TotalSeats)
+        {
+            throw ApiException.Conflict(ErrorCodes.NoSeats, "No seats are available in this class.");
+        }
+
         await using var tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
         // 0. Lock the student, so their applications in different classes are handled one at a time.
@@ -94,8 +111,9 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
                 "This student already has an active application for this class.");
         }
 
-        // A student can be admitted to only one class: no new applications once admitted anywhere.
-        if (await AdmittedClassNameAsync(conn, tx, studentId, null, ct) is { } admittedIn)
+        // Optional rule: a student can be admitted to only one class in total.
+        if (options.OneAdmissionPerStudent &&
+            await AdmittedClassNameAsync(conn, tx, studentId, null, ct) is { } admittedIn)
         {
             throw AlreadyAdmitted(admittedIn);
         }
@@ -188,8 +206,9 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
                 throw HoldExpired();
             }
 
-            // A student can be admitted to only one class.
-            if (await AdmittedClassNameAsync(conn, tx, hold.StudentId, holdId, ct) is { } admittedIn)
+            // Optional rule: a student can be admitted to only one class in total.
+            if (options.OneAdmissionPerStudent &&
+                await AdmittedClassNameAsync(conn, tx, hold.StudentId, holdId, ct) is { } admittedIn)
             {
                 throw AlreadyAdmitted(admittedIn);
             }
@@ -210,12 +229,15 @@ public sealed class AdmissionService(NpgsqlDataSource dataSource, AdmissionOptio
                     "This student is already admitted to another class. A student can be admitted to only one class.");
             }
 
-            // The student's other pending applications can never be confirmed now, so release
-            // those seats for other students straight away instead of waiting for them to expire.
-            await conn.ExecuteAsync(new CommandDefinition("""
-                UPDATE holds SET status = 'CANCELLED', cancelled_at = @now
-                WHERE student_id = @studentId AND status = 'HELD' AND id <> @holdId AND expires_at > @now
-                """, new { studentId = hold.StudentId, holdId, now }, tx, cancellationToken: ct));
+            if (options.OneAdmissionPerStudent)
+            {
+                // The student's other pending applications can never be confirmed now, so release
+                // those seats for other students straight away instead of waiting for them to expire.
+                await conn.ExecuteAsync(new CommandDefinition("""
+                    UPDATE holds SET status = 'CANCELLED', cancelled_at = @now
+                    WHERE student_id = @studentId AND status = 'HELD' AND id <> @holdId AND expires_at > @now
+                    """, new { studentId = hold.StudentId, holdId, now }, tx, cancellationToken: ct));
+            }
 
             await tx.CommitAsync(ct);
             return confirmed;

@@ -19,6 +19,13 @@ public sealed class ClassRow
     public long ConfirmedSeats { get; init; }
 }
 
+public sealed class QuickSeatCheck
+{
+    public int TotalSeats { get; init; }
+    public long Used { get; init; }
+    public bool HasOwn { get; init; }
+}
+
 public sealed class HoldRow
 {
     public string Id { get; init; } = "";
