@@ -36,6 +36,30 @@ public static class ClassEndpoints
     }
 
     /// <summary>
+    /// Control characters (including NUL, which PostgreSQL cannot store) and unpaired UTF-16
+    /// surrogates are rejected so they produce a 400 instead of a database error.
+    /// </summary>
+    internal static bool HasInvalidCharacters(string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (char.IsControl(c)) return true;
+            if (char.IsHighSurrogate(c))
+            {
+                if (i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+                {
+                    i++;
+                    continue;
+                }
+                return true;
+            }
+            if (char.IsLowSurrogate(c)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Parses the body by hand so every kind of bad input gets a precise 400 instead of a
     /// generic binder failure: wrong types, fractions, strings for numbers, missing fields, etc.
     /// </summary>
@@ -69,9 +93,26 @@ public static class ClassEndpoints
             }
             else
             {
-                name = nameEl.GetString()!.Trim();
-                if (name.Length == 0) errors["name"] = "name must not be empty.";
-                else if (name.Length > MaxNameLength) errors["name"] = $"name must be at most {MaxNameLength} characters.";
+                string? raw;
+                try
+                {
+                    raw = nameEl.GetString();
+                }
+                catch (InvalidOperationException)
+                {
+                    raw = null; // invalid UTF-8 / UTF-16 inside the JSON string
+                }
+
+                if (raw is null || HasInvalidCharacters(raw))
+                {
+                    errors["name"] = "name contains invalid characters.";
+                }
+                else
+                {
+                    name = raw.Trim();
+                    if (name.Length == 0) errors["name"] = "name must not be empty.";
+                    else if (name.Length > MaxNameLength) errors["name"] = $"name must be at most {MaxNameLength} characters.";
+                }
             }
 
             int totalSeats = 0;
