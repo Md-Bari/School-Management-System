@@ -68,5 +68,16 @@ the brief's rules one by one before they were accepted.
 
 ## My own review
 
-<!-- TODO (author): add, in your own words, what you personally reviewed or changed, and
-     anything you would do differently. Remove this comment before submitting. -->
+I used the AI to write most of the code, so my job was mostly to steer it and to check its work against the brief. These are the decisions I made myself.
+
+I asked for a separate admin login with roles. Then I realised the brief says "Login লাগবে না" and the evaluators will test the API directly, so a login on `POST /classes` would fail their tests. I removed it.
+
+I wanted one student (one birth registration number) to get admission in only one class, because that is how it works in real schools. Later, reading rule 3 again, I saw it only limits applications per class. If their tests reuse the same student ID across classes, my rule would return 409 and break them. So I kept it, but as a switch (`ONE_ADMISSION_PER_STUDENT`) that is off by default.
+
+I asked for a load test with 1000 requests at the same time. No seat was oversold, but the last requests in line for a single class waited 4–5 seconds. I also asked about nginx and Redis. I decided not to add Redis: seat counts must come from the database under a lock, and a cache can only make them wrong.
+
+On the UI, I asked for the big countdown on the application page and the English/বাংলা button. I removed the "last updated" refresh time from the class list because parents don't need it, and showed the hold time limit there instead. I also tried a countdown card on the class list, then took it out to keep that page simple.
+
+One mistake was mine. I changed the second backend's port to 8080, which is the same port as the first one, so the two-process bonus could not start. It is back on 8081 now.
+
+If I did this again, I would write the checklist of rules from the brief first and test every idea against it before building, not after. I would also make holding a seat a single SQL statement, so that a popular class handles a big rush faster.
