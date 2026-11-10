@@ -63,7 +63,8 @@ services:
     build: ./backend
     environment: *backend-env
     ports:
-      - "8080:8080"
+      # Must differ from backend (8080): the bonus is two processes on DIFFERENT ports.
+      - "8081:8080"
     depends_on:
       db:
         condition: service_healthy
