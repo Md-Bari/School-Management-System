@@ -7,6 +7,7 @@ import { Notice } from '../components/Notice';
 import { RefreshStatus } from '../components/RefreshStatus';
 import { navigate, routeHref } from '../hooks/useHashRoute';
 import { usePolling } from '../hooks/usePolling';
+import { useServerSettings } from '../hooks/useServerSettings';
 import { digits, t } from '../i18n';
 import { effectiveStatus } from '../lib/holdStatus';
 
@@ -35,8 +36,9 @@ export function ClassListPage({ studentId }: { studentId: string }) {
   const { data: myHolds, refresh: refreshMine } = usePolling(fetchMine, CLASS_POLL_MS, `me:${studentId}`);
   // Recomputed on every render (at least every poll), so an expiring hold drops out on time.
   const active = activeHoldsByClass(myHolds, serverNow());
-  // A student can be admitted to only one class.
-  const admittedHold = myHolds?.find((h) => h.status === 'CONFIRMED');
+  // Only when the backend runs with ONE_ADMISSION_PER_STUDENT: one admission across all classes.
+  const { oneAdmissionPerStudent } = useServerSettings();
+  const admittedHold = oneAdmissionPerStudent ? myHolds?.find((h) => h.status === 'CONFIRMED') : undefined;
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
   const [message, setMessage] = useState<ApplyMessage | null>(null);
 
@@ -67,7 +69,10 @@ export function ClassListPage({ studentId }: { studentId: string }) {
   return (
     <section>
       <h2>{t('classes.title')}</h2>
-      <p className="muted">{t('classes.intro')}</p>
+      <p className="muted">
+        {t('classes.intro')}
+        {oneAdmissionPerStudent && <> {t('classes.oneAdmissionNote')}</>}
+      </p>
 
       {admittedHold && <Notice kind="success">{t('classes.admitted', { name: admittedHold.className })}</Notice>}
 
