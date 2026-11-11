@@ -4,14 +4,45 @@
 
 - **Claude Code** (Anthropic, model Claude Opus 5.5) in VS Code, used as a coding agent.
 
-## What it was used for
+## What I did
 
-AI was used heavily, across almost the whole project:
+I set the direction, made the main decisions and checked the result against the brief. The
+AI wrote most of the code; these are the parts that were my call.
 
-- Breaking the brief down into a requirements checklist and a build plan (`BUILD_PLAN.md`)
+I went through the brief rule by rule with the AI's requirements checklist and asked it to
+confirm every rule was covered before submitting. I chose to keep the API exactly as specified,
+because the evaluators test it directly.
+
+I asked for a separate admin login with roles. Then I realised the brief says "Login লাগবে না"
+and that a login on `POST /classes` would fail their API tests, so I removed it.
+
+I wanted one student (one birth registration number) to get admission in only one class,
+because that is how real schools work. Reading rule 3 again, I saw it only limits applications
+per class. If their tests reuse the same student ID across classes, my rule would return 409
+and break them. So I kept it, but as a switch (`ONE_ADMISSION_PER_STUDENT`) that is off by
+default.
+
+I asked for a load test with 1000 requests at the same time. No seat was oversold, but the last
+requests in line for a single class waited 4–5 seconds. I also asked about nginx and Redis and
+decided not to add Redis: seat counts must come from the database under a lock, and a cache can
+only make them wrong.
+
+On the UI, I asked for the big countdown on the application page and the English/বাংলা button.
+I removed the "last updated" refresh time from the class list because parents don't need it,
+and showed the hold time limit there instead. I also tried a countdown card on the class list,
+then took it out to keep that page simple.
+
+One mistake was mine. I changed the second backend's port to 8080, the same port as the first
+one, so the two-process bonus could not start. It is back on 8081 now.
+
+## What the AI did
+
+Following those decisions, the AI wrote most of the project:
+
+- The requirements checklist and build plan (`BUILD_PLAN.md`)
 - Backend code: API endpoints, the admission service with its locking SQL, middleware, schema
 - Backend integration and concurrency tests
-- Frontend: React components, hooks, API client, Bangla UI text, Vitest tests
+- Frontend: React components, hooks, API client, Bangla/English UI text, Vitest tests
 - Dockerfiles, `docker-compose.yml`, nginx config
 - Drafts of README, ASSUMPTIONS and this file
 
@@ -45,8 +76,8 @@ the brief's rules one by one before they were accepted.
    reader) and returned **500**, breaking rule 7. Caught by sending hostile inputs with `curl`
    to the running container. Fixed by rejecting such text with 400, plus a safety net that maps
    every PostgreSQL "data exception" to 400; covered by new tests.
-7. **A stricter rule that could fail the API tests.** On request, the AI added "a student can
-   be admitted to only one class", but it was applied unconditionally. Checking it against
+7. **A stricter rule that could fail the API tests.** On my request, the AI added "a student
+   can be admitted to only one class", but it was applied unconditionally. Checking it against
    rule 3 (which is *per class*) showed that API tests reusing one student ID across classes
    would get 409. It is now an opt-in switch (`ONE_ADMISSION_PER_STUDENT`), off by default.
 
@@ -66,18 +97,8 @@ the brief's rules one by one before they were accepted.
 - `npm audit` flagged advisories in the dev/test tooling (Vitest, esbuild). The tooling was
   upgraded (Vite 8, Vitest 5) and all tests and the build were re-run: 0 vulnerabilities.
 
-## My own review
+## What I would do differently
 
-I used the AI to write most of the code, so my job was mostly to steer it and to check its work against the brief. These are the decisions I made myself.
-
-I asked for a separate admin login with roles. Then I realised the brief says "Login লাগবে না" and the evaluators will test the API directly, so a login on `POST /classes` would fail their tests. I removed it.
-
-I wanted one student (one birth registration number) to get admission in only one class, because that is how it works in real schools. Later, reading rule 3 again, I saw it only limits applications per class. If their tests reuse the same student ID across classes, my rule would return 409 and break them. So I kept it, but as a switch (`ONE_ADMISSION_PER_STUDENT`) that is off by default.
-
-I asked for a load test with 1000 requests at the same time. No seat was oversold, but the last requests in line for a single class waited 4–5 seconds. I also asked about nginx and Redis. I decided not to add Redis: seat counts must come from the database under a lock, and a cache can only make them wrong.
-
-On the UI, I asked for the big countdown on the application page and the English/বাংলা button. I removed the "last updated" refresh time from the class list because parents don't need it, and showed the hold time limit there instead. I also tried a countdown card on the class list, then took it out to keep that page simple.
-
-One mistake was mine. I changed the second backend's port to 8080, which is the same port as the first one, so the two-process bonus could not start. It is back on 8081 now.
-
-If I did this again, I would write the checklist of rules from the brief first and test every idea against it before building, not after. I would also make holding a seat a single SQL statement, so that a popular class handles a big rush faster.
+I would write the checklist of rules from the brief first and test every idea against it
+before building, not after. I would also make holding a seat a single SQL statement, so that a
+popular class handles a big rush faster.
